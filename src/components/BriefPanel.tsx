@@ -19,15 +19,24 @@ interface BriefData {
   researchSummary?: string;
   // Step 1 - 브리프
   productName?: string;
+  productComposition?: string;
   slogan?: string;
   mainTarget?: string;
   massTarget?: string;
+  designSpec?: string;
+  planningPurpose?: string;
   totalSections?: number;
-  uspTable?: { item: string; detail: string; vsCompetitor: string; adCheck: string; direction: string }[];
-  tocSections?: { num: number; name: string; detail: string }[];
+  totalSectionsDetail?: string;
+  // USP - 공통/개별 구분 지원
+  uspTable?: { item: string; detail: string; vsCompetitor?: string; adCheck?: string; direction?: string }[];
+  uspGroups?: { groupName: string; description?: string; items: { item: string; detail: string }[] }[];
+  tocSections?: { num: number; name: string; detail: string; tag?: string }[];
   clientPreference?: string;
   designRef?: string;
   photoRef?: string;
+  photoRefBySections?: { section: string; description: string }[];
+  colorSuggestions?: string[];
+  overallToneAndManner?: string;
   aiModelPersona?: string;
   aeCommentary?: string;
   // Step 2 - 다듬기
@@ -131,6 +140,20 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
     if (d.slogan) lines.push(`> ${d.slogan}`);
     lines.push("");
 
+    // 제품 개요
+    if (d.productComposition || d.designSpec || d.planningPurpose || d.totalSectionsDetail) {
+      if (d.productComposition) lines.push(`**제품 구성:** ${d.productComposition}`);
+      if (d.mainTarget) lines.push(`**주요 타겟:** ${d.mainTarget}`);
+      if (d.designSpec) lines.push(`**디자인 규격:** ${d.designSpec}`);
+      if (d.planningPurpose) lines.push(`**기획 목적:** ${d.planningPurpose}`);
+      if (d.totalSectionsDetail) {
+        lines.push(`**Total:** ${d.totalSectionsDetail}`);
+      } else if (d.totalSections) {
+        lines.push(`**Total:** ${d.totalSections}섹션`);
+      }
+      lines.push("");
+    }
+
     // 📚 Data (시장조사)
     if (d.researchSummary || d.trends || d.keywords || (d.competitors && d.competitors.length > 0)) {
       lines.push("## 📚 Data");
@@ -166,10 +189,29 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
       }
     }
 
-    // 💡 레퍼런스
-    if (d.designRef || d.photoRef || d.similarProjects) {
-      lines.push("## 💡 레퍼런스");
+    // 📷 촬영 및 디자인 REF
+    if (d.designRef || d.photoRef || d.similarProjects || d.overallToneAndManner || (d.photoRefBySections && d.photoRefBySections.length > 0) || (d.colorSuggestions && d.colorSuggestions.length > 0)) {
+      lines.push("## 📷 촬영 및 디자인 REF");
       lines.push("");
+      if (d.overallToneAndManner) {
+        lines.push("**전체 톤앤매너**");
+        lines.push(d.overallToneAndManner);
+        lines.push("");
+      }
+      if (d.photoRefBySections && d.photoRefBySections.length > 0) {
+        lines.push("**섹션별 촬영 디렉션**");
+        for (const ref of d.photoRefBySections) {
+          lines.push(`- **${ref.section}**: ${ref.description}`);
+        }
+        lines.push("");
+      }
+      if (d.colorSuggestions && d.colorSuggestions.length > 0) {
+        lines.push("**컬러 제안**");
+        for (const c of d.colorSuggestions) {
+          lines.push(`- ${c}`);
+        }
+        lines.push("");
+      }
       if (d.designRef) {
         lines.push("**디자인 레퍼런스**");
         lines.push(d.designRef);
@@ -204,15 +246,28 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
     }
 
     // ⭐️ USP
-    if (d.uspTable && d.uspTable.length > 0) {
+    if ((d.uspGroups && d.uspGroups.length > 0) || (d.uspTable && d.uspTable.length > 0)) {
       lines.push("## ⭐️ USP");
       lines.push("");
-      lines.push("| 항목 | 상세 | vs 경쟁사 | 광고심의 | 방향 |");
-      lines.push("|---|---|---|---|---|");
-      for (const u of d.uspTable) {
-        lines.push(`| ${u.item || ""} | ${u.detail || ""} | ${u.vsCompetitor || ""} | ${u.adCheck || ""} | ${u.direction || ""} |`);
+      if (d.uspGroups && d.uspGroups.length > 0) {
+        for (const group of d.uspGroups) {
+          lines.push(`**▼ ${group.groupName}**`);
+          if (group.description) lines.push(group.description);
+          lines.push("| USP | 상세 내용 |");
+          lines.push("|---|---|");
+          for (const u of group.items) {
+            lines.push(`| ${u.item || ""} | ${u.detail || ""} |`);
+          }
+          lines.push("");
+        }
+      } else if (d.uspTable && d.uspTable.length > 0) {
+        lines.push("| 항목 | 상세 | vs 경쟁사 | 광고심의 | 방향 |");
+        lines.push("|---|---|---|---|---|");
+        for (const u of d.uspTable) {
+          lines.push(`| ${u.item || ""} | ${u.detail || ""} | ${u.vsCompetitor || ""} | ${u.adCheck || ""} | ${u.direction || ""} |`);
+        }
+        lines.push("");
       }
-      lines.push("");
     }
 
     // 📌 Target
@@ -232,7 +287,7 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
     }
 
     // 📷 촬영컨셉
-    if (d.photoRef || d.aiModelPersona) {
+    if (d.aiModelPersona || d.clientPreference) {
       lines.push("## 📷 촬영컨셉");
       lines.push("");
       if (d.aiModelPersona) {
@@ -251,12 +306,16 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
     if (d.tocSections && d.tocSections.length > 0) {
       lines.push("## 📃 기획방향 / 상세페이지 목차");
       lines.push("");
-      lines.push(`총 섹션 수: ${d.totalSections || d.tocSections.length}개`);
+      if (d.totalSectionsDetail) {
+        lines.push(`Total: ${d.totalSectionsDetail}`);
+      } else {
+        lines.push(`총 섹션 수: ${d.totalSections || d.tocSections.length}개`);
+      }
       lines.push("");
-      lines.push("| 섹션 | 이름 | 상세 |");
-      lines.push("|---|---|---|");
+      lines.push("| 섹션 | 이름 | 태그 | 상세 |");
+      lines.push("|---|---|---|---|");
       for (const s of d.tocSections) {
-        lines.push(`| 섹션${s.num} | ${s.name || ""} | ${s.detail || ""} |`);
+        lines.push(`| 섹션${s.num} | ${s.name || ""} | ${s.tag || ""} | ${s.detail || ""} |`);
       }
       lines.push("");
     }
@@ -555,13 +614,30 @@ function BriefPreview({ data }: { data: BriefData }) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
-      {/* Title */}
+      {/* 💡 제품 개요 */}
       {d.productName && (
         <div className="pb-4 border-b-2 border-gray-200">
           <h1 className="text-2xl font-bold text-gray-900">{d.productName}</h1>
           {d.slogan && (
             <p className="mt-2 text-base text-gray-500 italic">{d.slogan}</p>
           )}
+          <div className="mt-3 space-y-1 text-sm">
+            {d.productComposition && (
+              <p><span className="font-semibold text-gray-700">제품 구성:</span> <span className="text-gray-600">{d.productComposition}</span></p>
+            )}
+            {d.mainTarget && (
+              <p><span className="font-semibold text-gray-700">주요 타겟:</span> <span className="text-gray-600">{d.mainTarget}</span></p>
+            )}
+            {d.designSpec && (
+              <p><span className="font-semibold text-gray-700">디자인 규격:</span> <span className="text-gray-600">{d.designSpec}</span></p>
+            )}
+            {d.planningPurpose && (
+              <p><span className="font-semibold text-gray-700">기획 목적:</span> <span className="text-gray-600">{d.planningPurpose}</span></p>
+            )}
+            {(d.totalSections || d.totalSectionsDetail) && (
+              <p className="pt-1 border-t border-gray-100"><span className="font-bold text-blue-700">Total: {d.totalSectionsDetail || `${d.totalSections}섹션`}</span></p>
+            )}
+          </div>
         </div>
       )}
 
@@ -600,9 +676,29 @@ function BriefPreview({ data }: { data: BriefData }) {
         </BriefSection>
       )}
 
-      {/* 💡 레퍼런스 */}
-      {(d.designRef || d.photoRef || d.similarProjects) && (
-        <BriefSection emoji="💡" title="레퍼런스">
+      {/* 📷 촬영 및 디자인 REF */}
+      {(d.designRef || d.photoRef || d.similarProjects || (d.photoRefBySections && d.photoRefBySections.length > 0)) && (
+        <BriefSection emoji="📷" title="촬영 및 디자인 REF">
+          {d.overallToneAndManner && <BriefField label="전체 톤앤매너" value={d.overallToneAndManner} />}
+          {d.photoRefBySections && d.photoRefBySections.length > 0 && (
+            <div className="mt-2 space-y-2">
+              <p className="text-xs font-semibold text-gray-500">섹션별 촬영 디렉션</p>
+              {d.photoRefBySections.map((ref, i) => (
+                <div key={i} className="bg-gray-50 rounded-lg p-2.5">
+                  <p className="text-xs font-bold text-blue-700">{ref.section}</p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap mt-1">{ref.description}</p>
+                </div>
+              ))}
+            </div>
+          )}
+          {d.colorSuggestions && d.colorSuggestions.length > 0 && (
+            <div className="mt-2">
+              <p className="text-xs font-semibold text-gray-500 mb-1">컬러 제안</p>
+              {d.colorSuggestions.map((c, i) => (
+                <p key={i} className="text-xs text-gray-700">• {c}</p>
+              ))}
+            </div>
+          )}
           {d.designRef && <BriefField label="디자인 레퍼런스" value={d.designRef} />}
           {d.photoRef && <BriefField label="촬영 레퍼런스" value={d.photoRef} />}
           {d.similarProjects && <BriefField label="유사 프로젝트" value={d.similarProjects} />}
@@ -618,32 +714,63 @@ function BriefPreview({ data }: { data: BriefData }) {
       )}
 
       {/* ⭐️ USP */}
-      {d.uspTable && d.uspTable.length > 0 && (
+      {((d.uspTable && d.uspTable.length > 0) || (d.uspGroups && d.uspGroups.length > 0)) && (
         <BriefSection emoji="⭐️" title="USP">
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-white">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">항목</th>
-                  <th className="px-3 py-2 text-left font-semibold">상세</th>
-                  <th className="px-3 py-2 text-left font-semibold">vs 경쟁사</th>
-                  <th className="px-3 py-2 text-left font-semibold">광고심의</th>
-                  <th className="px-3 py-2 text-left font-semibold">방향</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {d.uspTable.map((u, i) => (
-                  <tr key={i} className="hover:bg-blue-50/50">
-                    <td className="px-3 py-2 font-medium text-gray-900">{u.item}</td>
-                    <td className="px-3 py-2 text-gray-700">{u.detail}</td>
-                    <td className="px-3 py-2 text-gray-700">{u.vsCompetitor}</td>
-                    <td className="px-3 py-2 text-gray-700">{u.adCheck}</td>
-                    <td className="px-3 py-2 text-gray-700">{u.direction}</td>
+          {/* 새 형식: 공통/개별 그룹 분리 */}
+          {d.uspGroups && d.uspGroups.length > 0 ? (
+            <div className="space-y-4">
+              {d.uspGroups.map((group, gi) => (
+                <div key={gi}>
+                  <p className="text-xs font-bold text-gray-800 mb-1">▼ {group.groupName}</p>
+                  {group.description && <p className="text-xs text-gray-500 mb-2">{group.description}</p>}
+                  <div className="rounded-lg border border-gray-200 overflow-hidden">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-800 text-white">
+                        <tr>
+                          <th className="px-3 py-2 text-left font-semibold w-1/4">USP</th>
+                          <th className="px-3 py-2 text-left font-semibold">상세 내용</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {group.items.map((u, i) => (
+                          <tr key={i} className="hover:bg-blue-50/50">
+                            <td className="px-3 py-2 font-bold text-gray-900">{u.item}</td>
+                            <td className="px-3 py-2 text-gray-700">{u.detail}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : d.uspTable && d.uspTable.length > 0 ? (
+            /* 기존 형식: 5컬럼 테이블 */
+            <div className="rounded-lg border border-gray-200 overflow-hidden">
+              <table className="w-full text-xs">
+                <thead className="bg-gray-800 text-white">
+                  <tr>
+                    <th className="px-3 py-2 text-left font-semibold">항목</th>
+                    <th className="px-3 py-2 text-left font-semibold">상세</th>
+                    {d.uspTable.some(u => u.vsCompetitor) && <th className="px-3 py-2 text-left font-semibold">vs 경쟁사</th>}
+                    {d.uspTable.some(u => u.adCheck) && <th className="px-3 py-2 text-left font-semibold">광고심의</th>}
+                    {d.uspTable.some(u => u.direction) && <th className="px-3 py-2 text-left font-semibold">방향</th>}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {d.uspTable.map((u, i) => (
+                    <tr key={i} className="hover:bg-blue-50/50">
+                      <td className="px-3 py-2 font-bold text-gray-900">{u.item}</td>
+                      <td className="px-3 py-2 text-gray-700">{u.detail}</td>
+                      {d.uspTable!.some(u => u.vsCompetitor) && <td className="px-3 py-2 text-gray-700">{u.vsCompetitor}</td>}
+                      {d.uspTable!.some(u => u.adCheck) && <td className="px-3 py-2 text-gray-700">{u.adCheck}</td>}
+                      {d.uspTable!.some(u => u.direction) && <td className="px-3 py-2 text-gray-700">{u.direction}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </BriefSection>
       )}
 
@@ -681,9 +808,12 @@ function BriefPreview({ data }: { data: BriefData }) {
               <tbody className="divide-y divide-gray-100">
                 {d.tocSections.map((s, i) => (
                   <tr key={i} className="hover:bg-blue-50/50">
-                    <td className="px-3 py-2 font-bold text-blue-700">섹션{s.num}</td>
-                    <td className="px-3 py-2 font-medium text-gray-900">{s.name}</td>
-                    <td className="px-3 py-2 text-gray-700">{s.detail}</td>
+                    <td className="px-3 py-2 font-bold text-blue-700 align-top">섹션{s.num}</td>
+                    <td className="px-3 py-2 font-medium text-gray-900 align-top">
+                      {s.tag && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded mr-1">{s.tag}</span>}
+                      {s.name}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap">{s.detail}</td>
                   </tr>
                 ))}
               </tbody>
