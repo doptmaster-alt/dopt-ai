@@ -31,7 +31,11 @@ export async function GET(req: NextRequest) {
     if (!plannerEmail) continue;
 
     for (const [field, label] of Object.entries(dueMappings)) {
-      if (project[field] === dateStr) {
+      // shoot_date는 쉼표 구분 다중 날짜 지원
+      const matches = field === 'shoot_date'
+        ? (project[field] || '').split(',').includes(dateStr)
+        : project[field] === dateStr;
+      if (matches) {
         const html = generateReminderHtml({
           plannerName: project.user_name,
           projectTitle: project.title,

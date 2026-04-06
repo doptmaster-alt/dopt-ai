@@ -385,9 +385,9 @@ export function getProjectsDueTomorrow() {
     SELECT p.*, u.name as user_name, u.username
     FROM projects p JOIN users u ON p.user_id = u.id
     WHERE p.status = 'active' AND (
-      p.brief_due = ? OR p.plan_due = ? OR p.shoot_date = ? OR p.design_due = ? OR p.final_due = ?
+      p.brief_due = ? OR p.plan_due = ? OR p.shoot_date LIKE ? OR p.design_due = ? OR p.final_due = ?
     )
-  `).all(dateStr, dateStr, dateStr, dateStr, dateStr) as any[];
+  `).all(dateStr, dateStr, `%${dateStr}%`, dateStr, dateStr) as any[];
 }
 
 export function addEmailLog(projectId: number, emailType: string, recipient: string, subject: string) {

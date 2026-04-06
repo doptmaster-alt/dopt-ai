@@ -317,14 +317,17 @@ export default function Dashboard() {
                 )}
                 {/* 다음 마감일 표시 */}
                 {(() => {
+                  // 촬영일은 다중 날짜(쉼표 구분) 지원 — 가장 가까운 미래 촬영일을 표시
+                  const shootDates = (project.shoot_date || "").split(",").filter(Boolean);
+                  const today = new Date().toISOString().split("T")[0];
+                  const nextShoot = shootDates.sort().find(d => d >= today);
                   const dues = [
                     { date: project.brief_due, label: "브리프" },
                     { date: project.plan_due, label: "기획안" },
-                    { date: project.shoot_date, label: "촬영" },
+                    ...(nextShoot ? [{ date: nextShoot, label: `촬영${shootDates.length > 1 ? ` (${shootDates.length}회)` : ""}` }] : []),
                     { date: project.design_due, label: "디자인" },
                     { date: project.final_due, label: "최종" },
                   ].filter(d => d.date);
-                  const today = new Date().toISOString().split("T")[0];
                   const upcoming = dues.find(d => d.date! >= today);
                   if (upcoming) {
                     const daysLeft = Math.ceil((new Date(upcoming.date!).getTime() - new Date(today).getTime()) / 86400000);
@@ -586,7 +589,6 @@ function ProjectFormFields({
               {[
                 { key: "briefDue", label: "브리프 전달일" },
                 { key: "planDue", label: "기획안 전달일" },
-                { key: "shootDate", label: "촬영일" },
                 { key: "designDue", label: "디자인 완료일" },
                 { key: "finalDue", label: "최종 전달일" },
               ].map(({ key, label }) => (
@@ -602,8 +604,74 @@ function ProjectFormFields({
               ))}
             </div>
           </div>
+          {/* 촬영 일정 (다중 날짜) */}
+          <ShootDatePicker shootDate={form.shootDate} onChange={(v) => setForm({ ...form, shootDate: v })} />
         </div>
       )}
     </>
+  );
+}
+
+/* ═══ 촬영일 다중 선택 컴포넌트 ═══ */
+function ShootDatePicker({ shootDate, onChange }: { shootDate: string; onChange: (v: string) => void }) {
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const dates = shootDate ? shootDate.split(",").filter(Boolean) : [];
+
+  const addDates = () => {
+    if (!startDate) return;
+    let newDates: string[] = [];
+    if (endDate && endDate > startDate) {
+      const s = new Date(startDate);
+      const e = new Date(endDate);
+      for (let d = new Date(s); d <= e; d.setDate(d.getDate() + 1)) {
+        newDates.push(d.toISOString().split("T")[0]);
+      }
+    } else {
+      newDates = [startDate];
+    }
+    const merged = [...new Set([...dates, ...newDates])].sort();
+    onChange(merged.join(","));
+    setStartDate("");
+    setEndDate("");
+  };
+
+  const removeDate = (date: string) => {
+    onChange(dates.filter(d => d !== date).join(","));
+  };
+
+  return (
+    <div>
+      <p className="text-xs font-semibold text-gray-500 mb-2">촬영 일정</p>
+      <div className="p-3 bg-orange-50 border border-orange-200 rounded-xl space-y-2">
+        {dates.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {dates.map(date => (
+              <span key={date} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-orange-200 rounded-lg text-xs text-gray-700">
+                {date}
+                <button onClick={() => removeDate(date)} className="text-gray-400 hover:text-red-500">&times;</button>
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <label className="text-xs text-gray-500">시작일</label>
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+              className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-orange-400 outline-none" />
+          </div>
+          <div className="flex-1">
+            <label className="text-xs text-gray-500">종료일 (연속시)</label>
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} min={startDate}
+              className="w-full mt-0.5 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-orange-400 outline-none" />
+          </div>
+          <button onClick={addDates} disabled={!startDate}
+            className="px-3 py-1.5 bg-orange-500 text-white text-xs font-medium rounded-lg hover:bg-orange-600 disabled:bg-gray-300 transition">
+            추가
+          </button>
+        </div>
+        <p className="text-xs text-gray-400">1일: 시작일만 / 연속: 시작+종료 / 별도날짜: 여러번 추가</p>
+      </div>
+    </div>
   );
 }

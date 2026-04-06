@@ -62,10 +62,61 @@ export default function SchedulePanel({ projectId, onClose }: Props) {
 
   const today = new Date().toISOString().split("T")[0];
 
+  // 촬영일정 다중 날짜 관리
+  const shootDates = schedule.shootDate ? schedule.shootDate.split(",").filter(Boolean) : [];
+  const [newShootDate, setNewShootDate] = useState("");
+  const [newShootEndDate, setNewShootEndDate] = useState("");
+
+  const addShootDates = () => {
+    if (!newShootDate) return;
+    let datesToAdd: string[] = [];
+    if (newShootEndDate && newShootEndDate > newShootDate) {
+      // 연속일 범위 추가
+      const start = new Date(newShootDate);
+      const end = new Date(newShootEndDate);
+      for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+        datesToAdd.push(d.toISOString().split("T")[0]);
+      }
+    } else {
+      datesToAdd = [newShootDate];
+    }
+    const merged = [...new Set([...shootDates, ...datesToAdd])].sort();
+    setSchedule({ ...schedule, shootDate: merged.join(",") });
+    setNewShootDate("");
+    setNewShootEndDate("");
+  };
+
+  const removeShootDate = (date: string) => {
+    const filtered = shootDates.filter(d => d !== date);
+    setSchedule({ ...schedule, shootDate: filtered.join(",") });
+  };
+
+  const formatShootDateDisplay = (dates: string[]) => {
+    if (dates.length === 0) return "";
+    // 연속일 그룹화
+    const groups: string[][] = [];
+    let current: string[] = [dates[0]];
+    for (let i = 1; i < dates.length; i++) {
+      const prev = new Date(dates[i - 1]);
+      const curr = new Date(dates[i]);
+      const diff = (curr.getTime() - prev.getTime()) / 86400000;
+      if (diff === 1) {
+        current.push(dates[i]);
+      } else {
+        groups.push(current);
+        current = [dates[i]];
+      }
+    }
+    groups.push(current);
+    return groups.map(g => {
+      if (g.length === 1) return g[0];
+      return `${g[0]} ~ ${g[g.length - 1]} (${g.length}일)`;
+    }).join(", ");
+  };
+
   const milestones = [
     { key: "briefDue" as const, label: "브리프 전달", icon: "📋", color: "blue" },
     { key: "planDue" as const, label: "기획안 전달", icon: "📐", color: "purple" },
-    { key: "shootDate" as const, label: "촬영 진행", icon: "📷", color: "orange" },
     { key: "designDue" as const, label: "디자인 완료", icon: "🎨", color: "pink" },
     { key: "finalDue" as const, label: "최종 전달", icon: "🚀", color: "green" },
   ];
@@ -155,6 +206,80 @@ export default function SchedulePanel({ projectId, onClose }: Props) {
                   </div>
                 );
               })}
+            </div>
+          </div>
+
+          {/* 촬영 일정 (다중 날짜) */}
+          <div>
+            <h3 className="text-sm font-bold text-gray-800 mb-3">촬영 일정</h3>
+            <div className="p-4 rounded-xl border border-orange-200 bg-orange-50/30 space-y-3">
+              {/* 등록된 촬영일 목록 */}
+              {shootDates.length > 0 && (
+                <div>
+                  <p className="text-xs text-gray-500 mb-2">
+                    {formatShootDateDisplay(shootDates)}
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {shootDates.map(date => {
+                      const status = getStatus(date);
+                      const badge = getStatusBadge(status);
+                      return (
+                        <div key={date} className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-sm ${
+                          status === "today" ? "border-red-300 bg-red-50" :
+                          status === "soon" ? "border-yellow-200 bg-yellow-50" :
+                          status === "past" ? "border-gray-200 bg-gray-50" :
+                          "border-orange-200 bg-white"
+                        }`}>
+                          <span className="text-xs">📷</span>
+                          <span className="font-medium text-gray-800">{date}</span>
+                          <span className={`text-xs font-bold px-1.5 py-0.5 rounded-full ${badge.cls}`}>
+                            {getDaysLeft(date) || badge.text}
+                          </span>
+                          <button
+                            onClick={() => removeShootDate(date)}
+                            className="text-gray-400 hover:text-red-500 ml-1"
+                          >
+                            &times;
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* 날짜 추가 */}
+              <div className="flex items-end gap-2 flex-wrap">
+                <div>
+                  <label className="text-xs text-gray-500">시작일</label>
+                  <input
+                    type="date"
+                    value={newShootDate}
+                    onChange={(e) => setNewShootDate(e.target.value)}
+                    className="block mt-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500">종료일 (연속촬영 시)</label>
+                  <input
+                    type="date"
+                    value={newShootEndDate}
+                    onChange={(e) => setNewShootEndDate(e.target.value)}
+                    min={newShootDate}
+                    className="block mt-1 px-2 py-1.5 border border-gray-200 rounded-lg text-sm text-gray-700 focus:ring-2 focus:ring-orange-400 outline-none"
+                  />
+                </div>
+                <button
+                  onClick={addShootDates}
+                  disabled={!newShootDate}
+                  className="px-4 py-1.5 bg-orange-500 text-white text-sm font-medium rounded-lg hover:bg-orange-600 disabled:bg-gray-300 disabled:text-gray-500 transition"
+                >
+                  + 추가
+                </button>
+              </div>
+              <p className="text-xs text-gray-400">
+                1일 촬영: 시작일만 선택 / 연속 촬영: 시작일+종료일 / 별도 날짜: 여러 번 추가
+              </p>
             </div>
           </div>
 
