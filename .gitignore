@@ -33,9 +33,28 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 .env*
 
+# Google Service Account Key (비밀키 - 절대 커밋 금지)
+google-service-account.json
+
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Database files
+*.db
+data/
+diopt-ai.db
+diopt.db
+
+# User uploads & learning data
+uploads/
+learning/
+
+# Backups
+backups/
+
+# Nginx SSL certs
+nginx/ssl/

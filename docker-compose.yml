@@ -1,0 +1,101 @@
+# ============================================
+# DIOPT AI - Docker Compose
+# Usage:
+#   Staging:    docker compose --profile staging up -d
+#   Production: docker compose --profile production up -d
+#   Both:       docker compose --profile staging --profile production up -d
+# ============================================
+
+services:
+  # --- Staging Server ---
+  diopt-staging:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diopt-staging
+    profiles: ["staging"]
+    restart: unless-stopped
+    ports:
+      - "3100:3000"
+    env_file:
+      - .env.staging
+    environment:
+      - NODE_ENV=production
+      - APP_ENV=staging
+    volumes:
+      - staging-data:/app/data
+      - staging-uploads:/app/uploads
+      - staging-learning:/app/learning
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # --- Production Server ---
+  diopt-production:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: diopt-production
+    profiles: ["production"]
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.production
+    environment:
+      - NODE_ENV=production
+      - APP_ENV=production
+    volumes:
+      - production-data:/app/data
+      - production-uploads:/app/uploads
+      - production-learning:/app/learning
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "10"
+
+  # --- Nginx Reverse Proxy ---
+  nginx:
+    image: nginx:alpine
+    container_name: diopt-nginx
+    profiles: ["production"]
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - nginx-logs:/var/log/nginx
+    depends_on:
+      diopt-production:
+        condition: service_healthy
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+volumes:
+  staging-data:
+  staging-uploads:
+  staging-learning:
+  production-data:
+  production-uploads:
+  production-learning:
+  nginx-logs:

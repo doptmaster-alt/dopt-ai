@@ -1,0 +1,15 @@
+{
+  "name": "DIOPT AI Designer",
+  "id": "diopt-ai-designer",
+  "api": "1.0.0",
+  "main": "code.js",
+  "ui": "ui.html",
+  "capabilities": [],
+  "enableProposedApi": false,
+  "editorType": ["figma"],
+  "networkAccess": {
+    "allowedDomains": ["https://none.example.com"],
+    "devAllowedDomains": ["http://localhost:3100"],
+    "reasoning": "DIOPT AI 서버와 통신하여 디자인 명령을 수신합니다."
+  }
+}

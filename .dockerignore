@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+*.md
+figma-plugin
+.env.local
+.env.production
+.env.staging
+diopt-ai.db
+diopt.db
+backups
+data
+uploads
+learning
+nginx

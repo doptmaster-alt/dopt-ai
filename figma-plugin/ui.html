@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    padding: 16px;
+    background: #f8f9fa;
+    font-size: 13px;
+  }
+  .header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 16px;
+  }
+  .header .logo {
+    width: 32px; height: 32px; background: #2563eb; border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: bold; font-size: 16px;
+  }
+  .header h1 { font-size: 16px; font-weight: 600; color: #1a1a1a; }
+  .header p { font-size: 11px; color: #666; }
+
+  .status {
+    padding: 10px 14px; border-radius: 8px; margin-bottom: 12px;
+    font-size: 12px; display: flex; align-items: center; gap: 8px;
+  }
+  .status.connected { background: #dcfce7; color: #166534; }
+  .status.disconnected { background: #fef3c7; color: #92400e; }
+  .status.polling { background: #dbeafe; color: #1e40af; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; }
+  .connected .dot { background: #22c55e; }
+  .disconnected .dot { background: #f59e0b; }
+  .polling .dot { background: #3b82f6; animation: pulse 1s infinite; }
+
+  @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+  .server-url {
+    margin-bottom: 12px;
+  }
+  .server-url label { display: block; font-size: 11px; color: #666; margin-bottom: 4px; }
+  .server-url input {
+    width: 100%; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px;
+    font-size: 12px; outline: none;
+  }
+  .server-url input:focus { border-color: #2563eb; }
+
+  .btn {
+    width: 100%; padding: 10px; border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 500; cursor: pointer; margin-bottom: 8px;
+  }
+  .btn-primary { background: #2563eb; color: white; }
+  .btn-primary:hover { background: #1d4ed8; }
+  .btn-primary:disabled { background: #93c5fd; cursor: not-allowed; }
+  .btn-danger { background: #ef4444; color: white; }
+  .btn-danger:hover { background: #dc2626; }
+
+  .log {
+    margin-top: 12px; max-height: 200px; overflow-y: auto;
+    background: #1a1a2e; border-radius: 8px; padding: 10px;
+    font-family: 'Menlo', monospace; font-size: 11px; color: #a0a0a0;
+  }
+  .log-entry { margin-bottom: 4px; line-height: 1.4; }
+  .log-entry.success { color: #4ade80; }
+  .log-entry.error { color: #f87171; }
+  .log-entry.info { color: #60a5fa; }
+  .log-entry.command { color: #fbbf24; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="logo">D</div>
+    <div>
+      <h1>DIOPT AI Designer</h1>
+      <p>AI 기획 어시스턴트 연동</p>
+    </div>
+  </div>
+
+  <div id="status" class="status disconnected">
+    <span class="dot"></span>
+    <span id="statusText">연결 대기 중</span>
+  </div>
+
+  <div class="server-url">
+    <label>서버 주소</label>
+    <input id="serverUrl" type="text" value="http://localhost:3100" />
+  </div>
+
+  <button id="connectBtn" class="btn btn-primary" onclick="toggleConnection()">연결 시작</button>
+
+  <div class="log" id="log"></div>
+
+  <script>
+    let isConnected = false;
+    let pollInterval = null;
+    const logEl = document.getElementById('log');
+
+    function addLog(text, type = '') {
+      const entry = document.createElement('div');
+      entry.className = `log-entry ${type}`;
+      entry.textContent = `[${new Date().toLocaleTimeString()}] ${text}`;
+      logEl.appendChild(entry);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function setStatus(status, text) {
+      const el = document.getElementById('status');
+      el.className = `status ${status}`;
+      document.getElementById('statusText').textContent = text;
+    }
+
+    function toggleConnection() {
+      if (isConnected) {
+        disconnect();
+      } else {
+        connect();
+      }
+    }
+
+    function connect() {
+      const url = document.getElementById('serverUrl').value;
+      isConnected = true;
+      document.getElementById('connectBtn').textContent = '연결 중지';
+      document.getElementById('connectBtn').className = 'btn btn-danger';
+      setStatus('polling', '서버에 연결 중...');
+      addLog('서버 연결 시작: ' + url, 'info');
+
+      // 2초마다 서버에서 명령 가져오기
+      pollInterval = setInterval(() => pollCommands(url), 2000);
+      pollCommands(url); // 즉시 한번 실행
+    }
+
+    function disconnect() {
+      isConnected = false;
+      if (pollInterval) clearInterval(pollInterval);
+      document.getElementById('connectBtn').textContent = '연결 시작';
+      document.getElementById('connectBtn').className = 'btn btn-primary';
+      setStatus('disconnected', '연결 해제됨');
+      addLog('서버 연결 해제', 'info');
+    }
+
+    async function pollCommands(baseUrl) {
+      try {
+        const res = await fetch(`${baseUrl}/api/figma-plugin/commands`, {
+          method: 'GET',
+          headers: { 'Content-Type': 'application/json' },
+        });
+
+        if (!res.ok) {
+          setStatus('disconnected', '서버 응답 오류');
+          return;
+        }
+
+        setStatus('connected', '서버 연결됨 - 명령 대기 중');
+        const data = await res.json();
+
+        if (data.commands && data.commands.length > 0) {
+          addLog(`${data.commands.length}개 명령 수신`, 'command');
+          setStatus('polling', `${data.commands.length}개 명령 실행 중...`);
+
+          // Figma 코드에 명령 전달
+          parent.postMessage({
+            pluginMessage: { type: 'execute-commands', commands: data.commands }
+          }, '*');
+        }
+      } catch (e) {
+        setStatus('disconnected', '서버 연결 실패');
+        addLog('연결 오류: ' + e.message, 'error');
+      }
+    }
+
+    // Figma 코드에서 결과 수신
+    window.onmessage = async (event) => {
+      const msg = event.data.pluginMessage;
+      if (!msg) return;
+
+      if (msg.type === 'command-results') {
+        const url = document.getElementById('serverUrl').value;
+        for (const r of msg.results) {
+          if (r.success) {
+            addLog(`✓ ${r.command}: ${r.result}`, 'success');
+          } else {
+            addLog(`✗ ${r.command}: ${r.error}`, 'error');
+          }
+        }
+        setStatus('connected', '서버 연결됨 - 명령 대기 중');
+
+        // 결과를 서버에 보고
+        try {
+          await fetch(`${url}/api/figma-plugin/results`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ results: msg.results }),
+          });
+        } catch (e) { addLog('결과 보고 실패: ' + e.message, 'error'); }
+      }
+
+      if (msg.type === 'fetch-image') {
+        try {
+          const res = await fetch(msg.url);
+          const buffer = await res.arrayBuffer();
+          parent.postMessage({
+            pluginMessage: { type: 'image-data', data: Array.from(new Uint8Array(buffer)) }
+          }, '*');
+        } catch (e) {
+          addLog('이미지 다운로드 실패: ' + e.message, 'error');
+        }
+      }
+    };
+  </script>
+</body>
+</html>

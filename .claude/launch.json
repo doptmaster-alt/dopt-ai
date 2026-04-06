@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "diopt-dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["/Users/dopt/미국공략웹사이���/diopt-ai/.claude/start-dev.sh"],
+      "port": 3000
+    }
+  ]
+}
