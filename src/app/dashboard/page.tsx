@@ -348,7 +348,7 @@ export default function Dashboard() {
                     {STEPS[project.current_step]?.short}: {STEPS[project.current_step]?.name}
                   </span>
                   <span>
-                    {new Date(project.updated_at).toLocaleDateString("ko-KR")}
+                    {(() => { const d = new Date(project.updated_at + (project.updated_at.includes("Z") ? "" : "Z")); return d.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" }); })()}
                   </span>
                 </div>
               </div>

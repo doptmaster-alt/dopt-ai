@@ -232,7 +232,7 @@ export default function FileUploadPanel({
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-800 truncate">{file.file_name}</p>
                   <p className="text-xs text-gray-400">
-                    {formatFileSize(file.file_size)} · {new Date(file.uploaded_at).toLocaleString("ko-KR")}
+                    {formatFileSize(file.file_size)} · {new Date(file.uploaded_at + (file.uploaded_at.includes("Z") ? "" : "Z")).toLocaleString("ko-KR", { timeZone: "Asia/Seoul" })}
                   </p>
                 </div>
                 <button

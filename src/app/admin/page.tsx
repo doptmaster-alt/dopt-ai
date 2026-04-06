@@ -5,6 +5,19 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 import { STEPS } from "@/types";
 
+// SQLite CURRENT_TIMESTAMP는 UTC — 한국시간(KST)으로 변환
+function toKST(utcStr: string) {
+  if (!utcStr) return "";
+  // UTC 문자열에 'Z' 접미사 추가하여 Date가 UTC로 인식하게 함
+  const d = new Date(utcStr.includes("Z") || utcStr.includes("+") ? utcStr : utcStr + "Z");
+  return d.toLocaleString("ko-KR", { timeZone: "Asia/Seoul" });
+}
+function toKSTDate(utcStr: string) {
+  if (!utcStr) return "";
+  const d = new Date(utcStr.includes("Z") || utcStr.includes("+") ? utcStr : utcStr + "Z");
+  return d.toLocaleDateString("ko-KR", { timeZone: "Asia/Seoul" });
+}
+
 type Tab = "dashboard" | "approvals" | "users" | "projects" | "reports" | "learning" | "errors" | "feedback";
 
 interface PendingUser {
@@ -347,7 +360,7 @@ export default function AdminPage() {
                       <div className="text-right">
                         <span className="text-xs text-gray-500 block">{item.user_name}</span>
                         <span className="text-xs text-gray-400">
-                          {new Date(item.updated_at).toLocaleDateString("ko-KR")}
+                          {toKSTDate(item.updated_at)}
                         </span>
                       </div>
                     </div>
@@ -386,9 +399,7 @@ export default function AdminPage() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-400 mt-1">
-                        신청일: {new Date(user.created_at).toLocaleDateString("ko-KR", {
-                          year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit"
-                        })}
+                        신청일: {toKST(user.created_at)}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
@@ -460,7 +471,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
-                        {new Date(user.created_at).toLocaleDateString("ko-KR")}
+                        {toKSTDate(user.created_at)}
                       </td>
                       <td className="px-4 py-3 text-right">
                         {user.role !== "admin" && (
@@ -593,7 +604,7 @@ export default function AdminPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">
-                          {new Date(p.updated_at).toLocaleDateString("ko-KR")}
+                          {toKSTDate(p.updated_at)}
                         </td>
                       </tr>
                     ))}
@@ -700,7 +711,7 @@ export default function AdminPage() {
                     {stats.dailyActivity.map((item, i) => (
                       <div key={i} className="flex items-center gap-3">
                         <span className="text-xs text-gray-500 w-20 flex-shrink-0">
-                          {new Date(item.date).toLocaleDateString("ko-KR", { month: "short", day: "numeric" })}
+                          {toKSTDate(item.date)}
                         </span>
                         <div className="flex-1 h-5 bg-gray-100 rounded-full overflow-hidden">
                           <div
@@ -889,7 +900,7 @@ export default function AdminPage() {
                         </span>
                         <span className="text-xs text-gray-400">{err.type}</span>
                         {err.user_name && <span className="text-xs text-gray-400">| {err.user_name}</span>}
-                        <span className="text-xs text-gray-400">{new Date(err.created_at).toLocaleString("ko-KR")}</span>
+                        <span className="text-xs text-gray-400">{toKST(err.created_at)}</span>
                       </div>
                       <h4 className="font-medium text-gray-900 text-sm">{err.title}</h4>
                       <p className="text-xs text-gray-500 mt-1 line-clamp-2">{err.message}</p>
@@ -994,7 +1005,7 @@ export default function AdminPage() {
                         {fb.priority === "urgent" ? "긴급" : fb.priority === "high" ? "높음" : fb.priority === "normal" ? "보통" : "낮음"}
                       </span>
                       <span className="text-xs text-gray-400">| {fb.user_name}</span>
-                      <span className="text-xs text-gray-400">{new Date(fb.created_at).toLocaleString("ko-KR")}</span>
+                      <span className="text-xs text-gray-400">{toKST(fb.created_at)}</span>
                     </div>
                     <span className={`px-2 py-0.5 text-xs rounded-full ${
                       fb.status === "pending" ? "bg-orange-100 text-orange-700" :
