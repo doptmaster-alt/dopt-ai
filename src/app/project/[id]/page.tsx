@@ -682,8 +682,21 @@ export default function ProjectChat() {
     if (status.includes("스크린샷")) {
       return { message: "디옵이가 스크린샷을 찍고 있어요", emoji: "📸", type: "screenshot" };
     }
-    if (status.includes("기획안") || status.includes("섹션 데이터")) {
-      return { message: "디옵이가 기획안을 작성하고 있어요", emoji: "📝", type: "plan" };
+    // 폼 데이터 저장 — 현재 스텝에 따라 다른 메시지
+    if (status.includes("기획안") || status.includes("섹션 데이터") || status.includes("폼 데이터") || status.includes("update_step")) {
+      if (currentStep <= 2) {
+        return { message: "디옵이가 브리프를 작성하고 있어요", emoji: "📋", type: "brief" };
+      }
+      if (currentStep === 3) {
+        return { message: "디옵이가 기획안을 작성하고 있어요", emoji: "📝", type: "plan" };
+      }
+      if (currentStep === 4) {
+        return { message: "디옵이가 촬영콘티를 작성하고 있어요", emoji: "🎬", type: "conti" };
+      }
+      if (currentStep === 6) {
+        return { message: "디옵이가 디자인 가이드를 작성하고 있어요", emoji: "🎨", type: "design" };
+      }
+      return { message: "디옵이가 산출물을 정리하고 있어요", emoji: "📝", type: "form" };
     }
     return { message: "디옵이가 작업 중이에요", emoji: "⚡", type: "working" };
   };
