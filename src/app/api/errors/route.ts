@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
       message: body.message || '',
       stackTrace: body.stackTrace || '',
       url: body.url || '',
-      userId: (session?.user as any)?.id ? Number((session.user as any).id) : undefined,
+      userId: (session?.user as any)?.id ? Number((session?.user as any).id) : undefined,
       userName: (session?.user?.name as string) || '',
       projectId: body.projectId ? Number(body.projectId) : undefined,
       browserInfo: body.browserInfo || '',
