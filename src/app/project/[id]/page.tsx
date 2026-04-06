@@ -514,6 +514,39 @@ export default function ProjectChat() {
     setIsStreaming(false);
   };
 
+  // 작업의뢰서 자동 분석
+  const handleWorkOrderAnalyze = useCallback(async () => {
+    try {
+      // 1. 업로드된 파일 파싱
+      const res = await fetch(`/api/projects/${projectId}/files/analyze`);
+      if (!res.ok) {
+        console.error("Work order analyze failed:", await res.text());
+        return;
+      }
+      const data = await res.json();
+      const fileContent = data.combinedText;
+
+      if (!fileContent || fileContent.length < 10) {
+        // 파일 내용이 너무 짧으면 건너뛰기
+        sendMessage("작업의뢰서 파일을 업로드했지만 내용을 추출할 수 없습니다. 작업의뢰서 내용을 직접 입력해주세요.");
+        return;
+      }
+
+      // 2. 파싱된 내용을 AI에게 전송하여 분석
+      const analyzeMessage = `[작업의뢰서 자동 분석]\n\n다음은 업로드된 작업의뢰서 내용입니다. 이 내용을 분석하여 프로젝트 정보를 정리해주세요:\n\n${fileContent}`;
+
+      if (viewMode === "form") setViewMode("split");
+      sendMessage(analyzeMessage);
+
+      // 3. 분석 후 STEP 1(시장조사)로 자동 진행
+      setTimeout(() => {
+        updateStep(1);
+      }, 2000);
+    } catch (e) {
+      console.error("Work order analyze error:", e);
+    }
+  }, [projectId, viewMode]);
+
   // Form → Chat 연동
   const handleFormToChat = useCallback((message: string) => {
     if (viewMode === "form") setViewMode("split");
@@ -1054,7 +1087,8 @@ export default function ProjectChat() {
                   projectId={parseInt(projectId)}
                   currentStep={0}
                   refreshKey={formRefreshKey}
-                  onStepComplete={() => updateStep(1)}
+                  onStepComplete={() => updateStep(2)}
+                  onWorkOrderAnalyze={handleWorkOrderAnalyze}
                 />
               ) : /* STEP 1: 시장조사 / STEP 2: 브리프 작성 */
               currentStep >= 1 && currentStep <= 2 ? (
