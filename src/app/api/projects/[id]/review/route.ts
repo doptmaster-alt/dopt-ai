@@ -74,7 +74,7 @@ async function handleGenerate(projectId: number) {
     if (allFiles.length > 0) {
       projectSummary += `[업로드된 파일 목록]\n`;
       for (const f of allFiles) {
-        projectSummary += `- ${f.original_name} (${f.file_type}, step ${f.step})\n`;
+        projectSummary += `- ${f.file_name} (${f.file_type}, step ${f.step})\n`;
       }
     }
 

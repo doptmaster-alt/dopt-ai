@@ -13,7 +13,7 @@ interface FileUploadPanelProps {
 interface ProjectFile {
   id: number;
   file_path: string;
-  original_name: string;
+  file_name: string;
   file_size: number;
   mime_type: string;
   file_type: string;
@@ -149,13 +149,14 @@ export default function FileUploadPanel({
   };
 
   const getFileIcon = (mimeType: string, name: string) => {
-    if (mimeType?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(name)) return "🖼️";
-    if (mimeType === "application/pdf" || name.endsWith(".pdf")) return "📄";
-    if (name.endsWith(".pptx") || name.endsWith(".ppt")) return "📊";
-    if (name.endsWith(".docx") || name.endsWith(".doc")) return "📝";
-    if (name.endsWith(".xlsx") || name.endsWith(".xls")) return "📊";
-    if (name.endsWith(".ai")) return "🎨";
-    if (name.endsWith(".psd")) return "🎨";
+    const n = name || "";
+    if (mimeType?.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(n)) return "🖼️";
+    if (mimeType === "application/pdf" || n.endsWith(".pdf")) return "📄";
+    if (n.endsWith(".pptx") || n.endsWith(".ppt")) return "📊";
+    if (n.endsWith(".docx") || n.endsWith(".doc")) return "📝";
+    if (n.endsWith(".xlsx") || n.endsWith(".xls")) return "📊";
+    if (n.endsWith(".ai")) return "🎨";
+    if (n.endsWith(".psd")) return "🎨";
     return "📎";
   };
 
@@ -218,10 +219,10 @@ export default function FileUploadPanel({
                 className="flex items-center gap-3 p-3 bg-white border border-gray-200 rounded-lg hover:border-gray-300 transition"
               >
                 <span className="text-xl flex-shrink-0">
-                  {getFileIcon(file.mime_type, file.original_name)}
+                  {getFileIcon(file.mime_type, file.file_name)}
                 </span>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{file.original_name}</p>
+                  <p className="text-sm font-medium text-gray-800 truncate">{file.file_name}</p>
                   <p className="text-xs text-gray-400">
                     {formatFileSize(file.file_size)} · {new Date(file.uploaded_at).toLocaleString("ko-KR")}
                   </p>
