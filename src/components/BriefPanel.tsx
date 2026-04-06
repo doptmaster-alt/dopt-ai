@@ -1,11 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 
 interface Props {
   projectId: number;
   currentStep: number;
   refreshKey?: number;
+  onConfirmAndNextStep?: () => void;
+  onRequestPlan?: (message?: string) => void;
 }
 
 interface BriefData {
@@ -76,7 +78,7 @@ interface QualityResult {
   summary: string;
 }
 
-export default function BriefPanel({ projectId, currentStep, refreshKey }: Props) {
+export default function BriefPanel({ projectId, currentStep, refreshKey, onConfirmAndNextStep, onRequestPlan }: Props) {
   const [briefData, setBriefData] = useState<BriefData>({});
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
@@ -84,6 +86,18 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
   const [qualityResult, setQualityResult] = useState<QualityResult | null>(null);
   const [qualityLoading, setQualityLoading] = useState(false);
   const [showQuality, setShowQuality] = useState(false);
+  // 편집 관련
+  const [isEditing, setIsEditing] = useState(false);
+  const [editData, setEditData] = useState<BriefData>({});
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [hasUnsaved, setHasUnsaved] = useState(false);
+  const [confirmed, setConfirmed] = useState(false);
+  // 이미지 드래그앤드롭
+  const [refImages, setRefImages] = useState<{ id: string; name: string; url: string; section?: string }[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchBriefData = useCallback(async () => {
     setLoading(true);
@@ -130,10 +144,161 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
     fetchBriefData();
   }, [fetchBriefData, currentStep, refreshKey]);
 
+  // briefData 변경 시 editData 동기화
+  useEffect(() => {
+    if (!isEditing) {
+      setEditData(briefData);
+    }
+  }, [briefData, isEditing]);
+
+  // 레퍼런스 이미지 로드
+  useEffect(() => {
+    const loadImages = async () => {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/files?step=2&fileType=brief_ref`);
+        if (res.ok) {
+          const files = await res.json();
+          setRefImages(files.map((f: any) => ({
+            id: String(f.id),
+            name: f.file_name,
+            url: `/api/projects/${projectId}/files/${f.id}/download`,
+            section: f.section_tag || "",
+          })));
+        }
+      } catch {}
+    };
+    loadImages();
+  }, [projectId, refreshKey]);
+
+  // 자동 저장 (30초마다)
+  useEffect(() => {
+    if (hasUnsaved && isEditing) {
+      autoSaveTimerRef.current = setTimeout(() => {
+        handleSave(true);
+      }, 30000);
+    }
+    return () => {
+      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    };
+  }, [hasUnsaved, isEditing, editData]);
+
+  // 편집 필드 업데이트 (자동저장 트리거)
+  const updateField = (key: string, value: any) => {
+    setEditData(prev => ({ ...prev, [key]: value }));
+    setHasUnsaved(true);
+  };
+
+  // 저장
+  const handleSave = async (isAutoSave = false) => {
+    setSaving(true);
+    try {
+      const dataToSave = isEditing ? editData : briefData;
+      await fetch(`/api/projects/${projectId}/step-data`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          step: 2, // 브리프 스텝
+          formData: dataToSave,
+          status: confirmed ? "confirmed" : "draft",
+        }),
+      });
+      setBriefData(dataToSave);
+      setHasUnsaved(false);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      console.error("브리프 저장 실패:", e);
+      if (!isAutoSave) alert("저장에 실패했습니다.");
+    }
+    setSaving(false);
+  };
+
+  // 편집 모드 토글
+  const toggleEdit = () => {
+    if (isEditing) {
+      // 편집 종료 → 저장
+      handleSave();
+      setIsEditing(false);
+    } else {
+      setEditData({ ...briefData });
+      setIsEditing(true);
+    }
+  };
+
+  // 이미지 드래그 앤 드롭
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+  const handleDragLeave = () => setIsDragging(false);
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+    if (files.length === 0) return;
+    await uploadRefImages(files);
+  };
+  const handleImageSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    await uploadRefImages(files);
+    e.target.value = "";
+  };
+  const uploadRefImages = async (files: File[]) => {
+    for (const file of files) {
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("step", "2");
+      formData.append("fileType", "brief_ref");
+      try {
+        const res = await fetch(`/api/projects/${projectId}/files`, {
+          method: "POST",
+          body: formData,
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setRefImages(prev => [...prev, {
+            id: String(data.id),
+            name: file.name,
+            url: `/api/projects/${projectId}/files/${data.id}/download`,
+          }]);
+        }
+      } catch (err) {
+        console.error("이미지 업로드 실패:", err);
+      }
+    }
+  };
+  const removeRefImage = async (imageId: string) => {
+    try {
+      await fetch(`/api/projects/${projectId}/files?fileId=${imageId}`, { method: "DELETE" });
+      setRefImages(prev => prev.filter(img => img.id !== imageId));
+    } catch {}
+  };
+
+  // 브리프 컨펌
+  const handleConfirm = async () => {
+    // 편집 중이면 먼저 저장
+    if (isEditing) {
+      await handleSave();
+      setIsEditing(false);
+    }
+    setConfirmed(true);
+    // 상태를 confirmed로 저장
+    await fetch(`/api/projects/${projectId}/step-data`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        step: 2,
+        formData: editData.productName ? editData : briefData,
+        status: "confirmed",
+      }),
+    });
+  };
+
   // 노션에 붙여넣기 좋은 마크다운 형식으로 변환
   const generateNotionText = (): string => {
     const lines: string[] = [];
-    const d = briefData;
+    const d = isEditing ? editData : briefData;
 
     // 헤더
     lines.push(`# ${d.productName || "브리프"}`);
@@ -498,27 +663,28 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
   return (
     <div className="h-full flex flex-col bg-gray-50">
       {/* Header */}
-      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
+      <div className="flex-shrink-0 bg-white border-b border-gray-200 px-3 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <span className="text-sm">📋</span>
             <span className="text-sm font-semibold text-gray-800">노션 브리프</span>
-            <span className="text-xs text-gray-400">STEP {currentStep}</span>
+            {confirmed && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold">확정됨</span>}
+            {hasUnsaved && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">미저장</span>}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             {/* Tab 전환 */}
             <div className="flex bg-gray-100 rounded-lg p-0.5">
               <button
                 onClick={() => { setActiveTab("preview"); setShowQuality(false); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                className={`px-2 py-1 rounded-md text-xs font-medium transition ${
                   activeTab === "preview" && !showQuality ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
               >
-                미리보기
+                {isEditing ? "편집" : "미리보기"}
               </button>
               <button
                 onClick={() => { setActiveTab("raw"); setShowQuality(false); }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                className={`px-2 py-1 rounded-md text-xs font-medium transition ${
                   activeTab === "raw" && !showQuality ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                 }`}
               >
@@ -527,7 +693,7 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
               {qualityResult && (
                 <button
                   onClick={() => setShowQuality(true)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition ${
+                  className={`px-2 py-1 rounded-md text-xs font-medium transition ${
                     showQuality ? "bg-white text-gray-900 shadow-sm" : "text-gray-500"
                   }`}
                 >
@@ -535,35 +701,51 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
                 </button>
               )}
             </div>
+            {/* 편집 토글 */}
+            <button
+              onClick={toggleEdit}
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition ${
+                isEditing
+                  ? "bg-green-600 text-white hover:bg-green-700"
+                  : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+              }`}
+            >
+              {isEditing ? "편집 완료" : "편집"}
+            </button>
+            {/* 저장 */}
+            <button
+              onClick={() => handleSave()}
+              disabled={saving}
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition ${
+                saving ? "bg-gray-200 text-gray-500 cursor-wait" :
+                saved ? "bg-green-100 text-green-700" :
+                "bg-blue-600 text-white hover:bg-blue-700"
+              }`}
+            >
+              {saving ? "저장중..." : saved ? "저장됨!" : "저장"}
+            </button>
+            {/* QC */}
             <button
               onClick={handleQualityCheck}
               disabled={qualityLoading}
-              className={`flex items-center gap-1 px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                qualityLoading
-                  ? "bg-gray-200 text-gray-500 cursor-wait"
-                  : "bg-orange-500 text-white hover:bg-orange-600"
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition ${
+                qualityLoading ? "bg-gray-200 text-gray-500 cursor-wait" : "bg-orange-500 text-white hover:bg-orange-600"
               }`}
             >
-              {qualityLoading ? (
-                <>
-                  <span className="animate-spin inline-block w-3 h-3 border-2 border-white border-t-transparent rounded-full" />
-                  검수 중...
-                </>
-              ) : "QC 체크"}
+              {qualityLoading ? "검수중..." : "QC"}
             </button>
+            {/* 복사 */}
             <button
               onClick={handleCopy}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg transition ${
-                copied
-                  ? "bg-green-100 text-green-700 border border-green-200"
-                  : "bg-blue-600 text-white hover:bg-blue-700"
+              className={`px-2.5 py-1.5 text-xs font-medium rounded-lg transition ${
+                copied ? "bg-green-100 text-green-700" : "bg-gray-200 text-gray-700 hover:bg-gray-300"
               }`}
             >
-              {copied ? "복사됨!" : "노션 복사"}
+              {copied ? "복사됨!" : "복사"}
             </button>
             <button
               onClick={fetchBriefData}
-              className="text-xs text-gray-500 hover:text-gray-700 px-2 py-1.5 rounded-lg hover:bg-gray-100"
+              className="text-xs text-gray-400 hover:text-gray-700 px-1.5 py-1.5 rounded-lg hover:bg-gray-100"
               title="새로고침"
             >
               🔄
@@ -593,8 +775,75 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
             ) : null}
           </div>
         ) : activeTab === "preview" ? (
-          <div className="p-6">
-            <BriefPreview data={briefData} />
+          <div className="p-4">
+            {isEditing ? (
+              <BriefEditor data={editData} onChange={updateField} />
+            ) : (
+              <BriefPreview data={briefData} />
+            )}
+
+            {/* 레퍼런스 이미지 섹션 */}
+            <div className="mt-6">
+              <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 bg-gray-50 border-b border-gray-200 flex items-center justify-between">
+                  <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+                    <span>📸</span> 레퍼런스 이미지
+                  </h2>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    className="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded-lg hover:bg-blue-100 transition"
+                  >
+                    + 이미지 추가
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="hidden"
+                    onChange={handleImageSelect}
+                  />
+                </div>
+                <div
+                  className={`p-4 min-h-[120px] transition-colors ${isDragging ? "bg-blue-50 border-2 border-dashed border-blue-300" : ""}`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  {refImages.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-6 text-gray-400">
+                      <span className="text-3xl mb-2">📸</span>
+                      <p className="text-xs">레퍼런스 이미지를 드래그 앤 드롭하세요</p>
+                      <p className="text-[10px] text-gray-300 mt-1">PNG, JPG, JPEG 지원</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-3 gap-3">
+                      {refImages.map((img) => (
+                        <div key={img.id} className="relative group rounded-lg overflow-hidden border border-gray-200">
+                          <img
+                            src={img.url}
+                            alt={img.name}
+                            className="w-full h-24 object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23f3f4f6' width='100' height='100'/%3E%3Ctext x='50' y='55' text-anchor='middle' fill='%239ca3af' font-size='14'%3E📸%3C/text%3E%3C/svg%3E";
+                            }}
+                          />
+                          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition flex items-center justify-center">
+                            <button
+                              onClick={() => removeRefImage(img.id)}
+                              className="opacity-0 group-hover:opacity-100 bg-red-500 text-white text-xs px-2 py-1 rounded-lg transition"
+                            >
+                              삭제
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-gray-500 truncate px-1.5 py-1 bg-white">{img.name}</p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           <div className="p-4">
@@ -604,6 +853,34 @@ export default function BriefPanel({ projectId, currentStep, refreshKey }: Props
           </div>
         )}
       </div>
+
+      {/* 하단 고정 — 컨펌 + 기획안 작성 */}
+      {currentStep === 2 && !isEmpty && (
+        <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-3">
+          <div className="flex items-center gap-2">
+            {!confirmed ? (
+              <button
+                onClick={handleConfirm}
+                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700 transition shadow-md"
+              >
+                브리프 확정하기
+              </button>
+            ) : (
+              <>
+                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                  <span>✅</span> 브리프 확정됨
+                </span>
+                <button
+                  onClick={() => onRequestPlan?.()}
+                  className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition shadow-md"
+                >
+                  📋 기획안 작성하기
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -867,6 +1144,134 @@ function BriefPreview({ data }: { data: BriefData }) {
             </p>
           </div>
         </BriefSection>
+      )}
+    </div>
+  );
+}
+
+// 브리프 편집 컴포넌트
+function BriefEditor({ data, onChange }: { data: BriefData; onChange: (key: string, value: any) => void }) {
+  const d = data;
+
+  return (
+    <div className="max-w-2xl mx-auto space-y-4">
+      {/* 제품 개요 */}
+      <EditSection emoji="💡" title="제품 개요">
+        <EditField label="제품명" value={d.productName || ""} onChange={(v) => onChange("productName", v)} />
+        <EditField label="슬로건" value={d.slogan || ""} onChange={(v) => onChange("slogan", v)} />
+        <EditField label="제품 구성" value={d.productComposition || ""} onChange={(v) => onChange("productComposition", v)} />
+        <EditField label="주요 타겟" value={d.mainTarget || ""} onChange={(v) => onChange("mainTarget", v)} />
+        <EditField label="매스 타겟" value={d.massTarget || ""} onChange={(v) => onChange("massTarget", v)} />
+        <EditField label="디자인 규격" value={d.designSpec || ""} onChange={(v) => onChange("designSpec", v)} />
+        <EditField label="기획 목적" value={d.planningPurpose || ""} onChange={(v) => onChange("planningPurpose", v)} multiline />
+        <EditField label="Total 상세" value={d.totalSectionsDetail || ""} onChange={(v) => onChange("totalSectionsDetail", v)} />
+      </EditSection>
+
+      {/* 시장조사 Data */}
+      <EditSection emoji="📚" title="Data (시장조사)">
+        <EditField label="트렌드" value={d.trends || ""} onChange={(v) => onChange("trends", v)} multiline />
+        <EditField label="키워드" value={d.keywords || ""} onChange={(v) => onChange("keywords", v)} multiline />
+        <EditField label="리서치 요약" value={d.researchSummary || ""} onChange={(v) => onChange("researchSummary", v)} multiline />
+        <EditField label="광고 규제 사항" value={d.adRegulations || ""} onChange={(v) => onChange("adRegulations", v)} multiline />
+        <EditField label="타겟 인사이트" value={d.targetInsight || ""} onChange={(v) => onChange("targetInsight", v)} multiline />
+      </EditSection>
+
+      {/* 촬영 및 디자인 REF */}
+      <EditSection emoji="📷" title="촬영 및 디자인 REF">
+        <EditField label="전체 톤앤매너" value={d.overallToneAndManner || ""} onChange={(v) => onChange("overallToneAndManner", v)} multiline />
+        <EditField label="디자인 레퍼런스" value={d.designRef || ""} onChange={(v) => onChange("designRef", v)} multiline />
+        <EditField label="촬영 레퍼런스" value={d.photoRef || ""} onChange={(v) => onChange("photoRef", v)} multiline />
+        <EditField label="AI 모델 페르소나" value={d.aiModelPersona || ""} onChange={(v) => onChange("aiModelPersona", v)} multiline />
+        <EditField label="클라이언트 선호" value={d.clientPreference || ""} onChange={(v) => onChange("clientPreference", v)} multiline />
+      </EditSection>
+
+      {/* 기획방향 — 섹션별 편집 */}
+      {d.tocSections && d.tocSections.length > 0 && (
+        <EditSection emoji="📃" title="기획방향 / 목차">
+          {d.tocSections.map((s, i) => (
+            <div key={i} className="bg-gray-50 rounded-lg p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-blue-700">섹션{s.num}</span>
+                <input
+                  className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none"
+                  value={s.name}
+                  onChange={(e) => {
+                    const updated = [...(d.tocSections || [])];
+                    updated[i] = { ...updated[i], name: e.target.value };
+                    onChange("tocSections", updated);
+                  }}
+                  placeholder="섹션 이름"
+                />
+                <input
+                  className="w-20 text-xs border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none"
+                  value={s.tag || ""}
+                  onChange={(e) => {
+                    const updated = [...(d.tocSections || [])];
+                    updated[i] = { ...updated[i], tag: e.target.value };
+                    onChange("tocSections", updated);
+                  }}
+                  placeholder="태그"
+                />
+              </div>
+              <textarea
+                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none"
+                rows={3}
+                value={s.detail}
+                onChange={(e) => {
+                  const updated = [...(d.tocSections || [])];
+                  updated[i] = { ...updated[i], detail: e.target.value };
+                  onChange("tocSections", updated);
+                }}
+                placeholder="상세 내용 (러프 카피, 비주얼 디렉션 등)"
+              />
+            </div>
+          ))}
+        </EditSection>
+      )}
+
+      {/* AE Commentary */}
+      <EditSection emoji="💬" title="AE Commentary">
+        <EditField label="AE 코멘트" value={d.aeCommentary || ""} onChange={(v) => onChange("aeCommentary", v)} multiline />
+        <EditField label="AE 노트" value={d.aeNotes || ""} onChange={(v) => onChange("aeNotes", v)} multiline />
+      </EditSection>
+    </div>
+  );
+}
+
+// 편집 섹션 wrapper
+function EditSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+        <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+          <span>{emoji}</span> {title}
+        </h2>
+      </div>
+      <div className="p-4 space-y-3">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// 편집 필드
+function EditField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
+  return (
+    <div>
+      <label className="text-xs font-semibold text-gray-500 mb-1 block">{label}</label>
+      {multiline ? (
+        <textarea
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 resize-none leading-relaxed"
+          rows={3}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+      ) : (
+        <input
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
       )}
     </div>
   );

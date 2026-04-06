@@ -24,16 +24,16 @@ interface ProjectFile {
 
 const FILE_TYPE_MAP: Record<number, string> = {
   0: "work_order",
-  7: "conti_confirmed",
-  9: "design_confirmed",
-  10: "final_report",
+  5: "conti_confirmed",
+  7: "design_confirmed",
+  8: "final_report",
 };
 
 const STEP_ACCEPT: Record<number, string> = {
   0: ".pdf,.docx,.doc,.pptx,.xlsx,.xls,.txt,.png,.jpg,.jpeg",
-  7: ".pdf,.png,.jpg,.jpeg,.ai,.psd",
-  9: ".pdf,.png,.jpg,.jpeg,.ai,.psd,.fig",
-  10: ".pdf",
+  5: ".pdf,.png,.jpg,.jpeg,.ai,.psd",
+  7: ".pdf,.png,.jpg,.jpeg,.ai,.psd,.fig",
+  8: ".pdf",
 };
 
 const STEP_INSTRUCTIONS: Record<number, { title: string; desc: string; hint: string }> = {
@@ -42,17 +42,17 @@ const STEP_INSTRUCTIONS: Record<number, { title: string; desc: string; hint: str
     desc: "클라이언트로부터 받은 작업의뢰서를 첨부해주세요.\n없다면 건너뛰고 다음 단계로 진행할 수 있습니다.",
     hint: "PDF, DOCX, PPTX, 이미지 파일 지원",
   },
-  7: {
+  5: {
     title: "촬영콘티 확정본 업로드",
     desc: "스타일리스트가 작성한 촬영콘티 확정본을 업로드해주세요.\n확정본이 업로드되면 다음 단계(디자인 가이드)로 진행합니다.",
     hint: "PDF, 이미지 파일 지원",
   },
-  9: {
+  7: {
     title: "디자인 확정본 업로드",
     desc: "완성된 상세페이지 디자인 파일을 업로드해주세요.",
     hint: "PDF, 이미지, Figma 파일 지원",
   },
-  10: {
+  8: {
     title: "프로젝트 마무리 파일 업로드",
     desc: "브리프, 기획안, 완성 디자인 최종본을 PDF로 업로드해주세요.\n모든 파일이 업로드되면 AI 총평 단계로 진행합니다.",
     hint: "PDF 파일만 지원",

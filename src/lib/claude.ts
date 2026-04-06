@@ -1092,15 +1092,15 @@ async function executeTool(name: string, input: any): Promise<string> {
         let formData = input.form_data || {};
 
         // DB에 저장된 섹션 데이터와 병합 (AI가 누락한 referenceImageUrl, wireframeBlocks 등 보완)
-        if (input.step === 5 && formData.sections?.length > 0) {
+        if (input.step === 3 && formData.sections?.length > 0) {
           try {
-            // projectId는 여기서 접근 불가하므로, DB의 최신 step 5 데이터와 비교하여 병합
+            // projectId는 여기서 접근 불가하므로, DB의 최신 step 3 데이터와 비교하여 병합
             // AI가 전달한 sections에 referenceImageUrl이 없지만 DB에는 있는 경우 DB 값 사용
             const dbSections = (() => {
               // contextProjectId is set by the chat route before calling streamChatWithTools
               const pid = (globalThis as any).__dioptCurrentProjectId;
               if (!pid) return null;
-              const row = getStepData(parseInt(pid), 5);
+              const row = getStepData(parseInt(pid), 3);
               if (!row?.form_data) return null;
               try { return JSON.parse(row.form_data)?.sections; } catch { return null; }
             })();

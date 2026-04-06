@@ -12,7 +12,6 @@ import ContiPanel from "@/components/ContiPanel";
 import PlanEditor from "@/components/PlanEditor/PlanEditor";
 import SchedulePanel from "@/components/SchedulePanel";
 import EmailComposer from "@/components/EmailComposer";
-import ConfirmationPanel from "@/components/ConfirmationPanel";
 import FileUploadPanel from "@/components/FileUploadPanel";
 import AIReviewPanel from "@/components/AIReviewPanel";
 
@@ -324,7 +323,7 @@ export default function ProjectChat() {
 
     // 단계 전환 명령 감지
     if (userMessage.includes("다음 단계") || userMessage.includes("다음 스텝")) {
-      if (currentStep < 11) {
+      if (currentStep < 9) {
         updateStep(currentStep + 1);
       }
     }
@@ -447,7 +446,7 @@ export default function ProjectChat() {
                 // 모든 단계 즉시 적용 — DB에 이미 저장 완료, 바로 기획안 패널 리프레시
                 setFormRefreshKey(Date.now());
                 if (viewMode === "chat") setViewMode("split");
-                if (currentStep >= 5 && currentStep <= 7 && parsed.formUpdate.sections?.length > 0) {
+                if (currentStep >= 3 && currentStep <= 4 && parsed.formUpdate.sections?.length > 0) {
                   setPlanApplied(true);
                   setPendingPlanSections(0);
                   console.log("[SSE] Plan auto-applied:", parsed.formUpdate.sections.length, "sections");
@@ -472,9 +471,9 @@ export default function ProjectChat() {
 
     // formUpdate SSE를 못 받았을 경우 — DB에서 직접 확인 후 패널 리프레시
     // 기획안 (V2: step 4-5)
-    if (currentStep >= 4 && currentStep <= 5 && !planApplied) {
+    if (currentStep === 3 && !planApplied) {
       try {
-        const res = await fetch(`/api/projects/${projectId}/step-data?step=4`);
+        const res = await fetch(`/api/projects/${projectId}/step-data?step=3`);
         if (res.ok) {
           const data = await res.json();
           if (data?.form_data) {
@@ -493,9 +492,9 @@ export default function ProjectChat() {
       }
     }
     // 촬영콘티 (V2: step 6) — 항상 DB 확인 후 리프레시
-    if (currentStep === 6) {
+    if (currentStep === 4) {
       try {
-        const res = await fetch(`/api/projects/${projectId}/step-data?step=6`);
+        const res = await fetch(`/api/projects/${projectId}/step-data?step=4`);
         if (res.ok) {
           const data = await res.json();
           if (data?.form_data) {
@@ -580,9 +579,9 @@ export default function ProjectChat() {
       const stepFallbacks: Record<number, number[]> = {
         0: [0],           // 시장조사
         1: [1, 2],        // 브리프
-        5: [5, 4, 3],     // 기획안 → step 5, 없으면 4(기획안 컨펌), 3(기획안 초안)
-        8: [8, 9],        // 촬영콘티
-        11: [11, 10],     // 디자인 가이드
+        3: [3],           // 기획안
+        4: [4],           // 촬영콘티
+        6: [6],           // 디자인 가이드
       };
       const stepsToTry = stepFallbacks[step] || [step];
 
@@ -869,7 +868,7 @@ export default function ProjectChat() {
               viewMode === "form" ? "bg-white text-gray-900 shadow-sm" : "text-gray-500 hover:text-gray-700"
             }`}
           >
-            {currentStep <= 4 ? "📋 노션" : currentStep <= 7 || currentStep === 11 ? "📐 기획안" : "🎬 PPT"}
+            {currentStep <= 2 ? "📋 노션" : currentStep <= 4 || currentStep === 9 ? "📐 기획안" : "🎬 PPT"}
           </button>
         </div>
 
@@ -972,7 +971,7 @@ export default function ProjectChat() {
                 >
                   📄 전체 대화
                 </button>
-                {[1, 2, 4, 6, 8].map((stepId) => (
+                {[1, 2, 3, 4, 6].map((stepId) => (
                   <button
                     key={stepId}
                     onClick={() => exportByStep(stepId)}
@@ -1078,7 +1077,7 @@ export default function ProjectChat() {
             </div>
           )}
 
-          {/* Right Panel — 스텝별 자동 전환 (V2 파이프라인) */}
+          {/* Right Panel — 스텝별 자동 전환 (V2 파이프라인, 10단계) */}
           {(viewMode === "form" || viewMode === "split") && (
             <div className="overflow-hidden" style={viewMode === "split" ? { width: `${100 - splitRatio}%`, flexShrink: 0 } : { flex: 1 }}>
               {/* STEP 0: 작업의뢰서 첨부 */}
@@ -1096,17 +1095,16 @@ export default function ProjectChat() {
                   projectId={parseInt(projectId)}
                   currentStep={currentStep}
                   refreshKey={formRefreshKey}
+                  onConfirmAndNextStep={() => {
+                    updateStep(3);
+                  }}
+                  onRequestPlan={(msg) => {
+                    updateStep(3);
+                    sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘");
+                  }}
                 />
-              ) : /* STEP 3: 브리프 확정 */
+              ) : /* STEP 3: 기획안 작성 */
               currentStep === 3 ? (
-                <ConfirmationPanel
-                  projectId={parseInt(projectId)}
-                  dataType="brief"
-                  currentStep={currentStep}
-                  refreshKey={formRefreshKey}
-                />
-              ) : /* STEP 4: 기획안 작성 */
-              currentStep === 4 ? (
                 <PlanEditor
                   projectId={parseInt(projectId)}
                   currentStep={currentStep}
@@ -1115,22 +1113,30 @@ export default function ProjectChat() {
                   figmaLoading={figmaExporting}
                   onChatMessage={handleReferenceChatMessage}
                 />
-              ) : /* STEP 5: 기획안 확정 */
-              currentStep === 5 ? (
-                <ConfirmationPanel
-                  projectId={parseInt(projectId)}
-                  dataType="plan"
-                  currentStep={currentStep}
-                  refreshKey={formRefreshKey}
-                />
-              ) : /* STEP 6: 촬영콘티 가이드 */
-              currentStep === 6 ? (
+              ) : /* STEP 4: 촬영콘티 가이드 */
+              currentStep === 4 ? (
                 <ContiPanel
                   projectId={parseInt(projectId)}
                   currentStep={currentStep}
                   refreshKey={formRefreshKey}
                 />
-              ) : /* STEP 7: 촬영콘티 확정본 업로드 */
+              ) : /* STEP 5: 촬영콘티 확정본 업로드 */
+              currentStep === 5 ? (
+                <FileUploadPanel
+                  projectId={parseInt(projectId)}
+                  currentStep={5}
+                  refreshKey={formRefreshKey}
+                  onStepComplete={() => updateStep(6)}
+                />
+              ) : /* STEP 6: 디자인 가이드 작성 */
+              currentStep === 6 ? (
+                <DesignGuideEditor
+                  projectId={parseInt(projectId)}
+                  currentStep={currentStep}
+                  refreshKey={formRefreshKey}
+                  projectName={project?.title}
+                />
+              ) : /* STEP 7: 디자인 확정본 업로드 */
               currentStep === 7 ? (
                 <FileUploadPanel
                   projectId={parseInt(projectId)}
@@ -1138,31 +1144,15 @@ export default function ProjectChat() {
                   refreshKey={formRefreshKey}
                   onStepComplete={() => updateStep(8)}
                 />
-              ) : /* STEP 8: 디자인 가이드 작성 */
+              ) : /* STEP 8: 프로젝트 마무리 */
               currentStep === 8 ? (
-                <DesignGuideEditor
-                  projectId={parseInt(projectId)}
-                  currentStep={currentStep}
-                  refreshKey={formRefreshKey}
-                  projectName={project?.title}
-                />
-              ) : /* STEP 9: 디자인 확정본 업로드 */
-              currentStep === 9 ? (
                 <FileUploadPanel
                   projectId={parseInt(projectId)}
-                  currentStep={9}
+                  currentStep={8}
                   refreshKey={formRefreshKey}
-                  onStepComplete={() => updateStep(10)}
+                  onStepComplete={() => updateStep(9)}
                 />
-              ) : /* STEP 10: 프로젝트 마무리 */
-              currentStep === 10 ? (
-                <FileUploadPanel
-                  projectId={parseInt(projectId)}
-                  currentStep={10}
-                  refreshKey={formRefreshKey}
-                  onStepComplete={() => updateStep(11)}
-                />
-              ) : /* STEP 11: AI 총평 & 리포팅 */
+              ) : /* STEP 9: AI 총평 & 리포팅 */
               (
                 <AIReviewPanel
                   projectId={parseInt(projectId)}
@@ -1186,7 +1176,7 @@ export default function ProjectChat() {
       {showEmailComposer && (
         <EmailComposer
           projectId={parseInt(projectId)}
-          deliveryType={currentStep <= 3 ? "브리프" : currentStep <= 5 ? "기획안" : currentStep <= 7 ? "촬영콘티" : "디자인가이드"}
+          deliveryType={currentStep <= 2 ? "브리프" : currentStep <= 3 ? "기획안" : currentStep <= 5 ? "촬영콘티" : "디자인가이드"}
           onClose={() => setShowEmailComposer(false)}
           onSent={() => setShowEmailComposer(false)}
         />

@@ -35,17 +35,17 @@ export async function POST(req: NextRequest) {
   try {
     // 자동 스텝 전환 감지
     let effectiveStep = currentStep;
-    // 디자인 가이드 요청 → STEP 8
-    if (currentStep !== 8 && currentStep >= 6 && /디자인\s*가이드/i.test(message)) {
-      effectiveStep = 8;
-      updateProjectStep(projectId, 8);
-      console.log(`[Chat API] Auto-advance to STEP 8 (design guide request detected)`);
+    // 디자인 가이드 요청 → STEP 6
+    if (currentStep !== 6 && currentStep >= 4 && /디자인\s*가이드/i.test(message)) {
+      effectiveStep = 6;
+      updateProjectStep(projectId, 6);
+      console.log(`[Chat API] Auto-advance to STEP 6 (design guide request detected)`);
     }
-    // 총평 요청 → STEP 11
-    if (currentStep !== 11 && currentStep >= 10 && /총평|리포트|리포팅|마무리.*평가/i.test(message)) {
-      effectiveStep = 11;
-      updateProjectStep(projectId, 11);
-      console.log(`[Chat API] Auto-advance to STEP 11 (review request detected)`);
+    // 총평 요청 → STEP 9
+    if (currentStep !== 9 && currentStep >= 8 && /총평|리포트|리포팅|마무리.*평가/i.test(message)) {
+      effectiveStep = 9;
+      updateProjectStep(projectId, 9);
+      console.log(`[Chat API] Auto-advance to STEP 9 (review request detected)`);
     }
 
     console.log('[Chat API] Starting chat for project', projectId, 'step', effectiveStep, 'messages:', chatMessages.length, 'hasFile:', !!fileAttachment);
