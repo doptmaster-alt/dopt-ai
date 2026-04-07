@@ -357,6 +357,129 @@ async function naverSearchPuppeteer(query: string): Promise<SearchResult[]> {
 }
 
 export async function fetchWebPage(url: string): Promise<string> {
+  console.log(`[FetchPage] 페이지 로드 시작: ${url}`);
+
+  // 1차: fetch API (Puppeteer 불필요, 빠르고 안정적)
+  try {
+    const text = await fetchPageWithFetchAPI(url);
+    if (text && text.length > 100) {
+      console.log(`[FetchPage] fetch API 성공: ${text.length}자`);
+      return text;
+    }
+  } catch (e: any) {
+    console.error(`[FetchPage] fetch API 실패: ${e.message}`);
+  }
+
+  // 2차: 캐시 서비스 (Google Cache, Web Archive 등)
+  try {
+    const text = await fetchFromCache(url);
+    if (text && text.length > 100) {
+      console.log(`[FetchPage] 캐시 서비스 성공: ${text.length}자`);
+      return text;
+    }
+  } catch (e: any) {
+    console.error(`[FetchPage] 캐시 서비스 실패: ${e.message}`);
+  }
+
+  // 3차: Puppeteer (JS 렌더링이 필요한 SPA 사이트용)
+  try {
+    const text = await fetchPageWithPuppeteer(url);
+    if (text && text.length > 50) {
+      console.log(`[FetchPage] Puppeteer 성공: ${text.length}자`);
+      return text;
+    }
+  } catch (e: any) {
+    console.error(`[FetchPage] Puppeteer 실패: ${e.message}`);
+  }
+
+  return `[웹페이지 로드 실패] URL: ${url}. 사이트가 봇 접근을 차단하거나 네트워크 문제일 수 있습니다.`;
+}
+
+// fetch API로 페이지 로드 (대부분의 사이트에서 작동, 빠름)
+async function fetchPageWithFetchAPI(url: string): Promise<string> {
+  const userAgents = [
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
+    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+  ];
+  const ua = userAgents[Math.floor(Math.random() * userAgents.length)];
+
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': ua,
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      'Accept-Language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    },
+    signal: AbortSignal.timeout(12000),
+    redirect: 'follow',
+  });
+
+  if (!res.ok) return '';
+
+  const html = await res.text();
+
+  // HTML에서 텍스트 추출 (script, style 제거)
+  return extractTextFromHTML(html);
+}
+
+// HTML에서 텍스트 추출 유틸리티
+function extractTextFromHTML(html: string): string {
+  // script, style, nav, footer, header 태그 제거
+  let cleaned = html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+    .replace(/<nav[\s\S]*?<\/nav>/gi, '')
+    .replace(/<footer[\s\S]*?<\/footer>/gi, '')
+    .replace(/<header[\s\S]*?<\/header>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
+
+  // 모든 HTML 태그 제거
+  cleaned = cleaned.replace(/<[^>]+>/g, ' ');
+
+  // HTML 엔티티 디코딩
+  cleaned = cleaned
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&nbsp;/g, ' ');
+
+  // 연속 공백/줄바꿈 정리
+  cleaned = cleaned
+    .replace(/\s+/g, ' ')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+
+  return cleaned.substring(0, 5000);
+}
+
+// Google 웹캐시 등에서 페이지 로드 시도
+async function fetchFromCache(url: string): Promise<string> {
+  // Google 캐시
+  try {
+    const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
+    const res = await fetch(cacheUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'follow',
+    });
+    if (res.ok) {
+      const html = await res.text();
+      const text = extractTextFromHTML(html);
+      if (text.length > 100) return text;
+    }
+  } catch {}
+  return '';
+}
+
+// Puppeteer로 페이지 로드 (JS 렌더링 필요 시 폴백)
+async function fetchPageWithPuppeteer(url: string): Promise<string> {
   const browser = await getBrowser();
   const page = await browser.newPage();
 
@@ -369,16 +492,15 @@ export async function fetchWebPage(url: string): Promise<string> {
     await new Promise(r => setTimeout(r, 2000));
 
     const text = await page.evaluate(() => {
-      // 불필요한 요소 제거
       ['script', 'style', 'nav', 'footer', 'header', 'iframe'].forEach(tag => {
         document.querySelectorAll(tag).forEach(el => el.remove());
       });
       return (document.body.innerText || '').substring(0, 5000);
     });
 
-    return text || '[페이지 내용을 추출할 수 없습니다]';
+    return text || '';
   } catch (e: any) {
-    return `[웹페이지 로드 실패: ${e.message}]`;
+    throw new Error(`Puppeteer: ${e.message}`);
   } finally {
     await page.close();
   }
