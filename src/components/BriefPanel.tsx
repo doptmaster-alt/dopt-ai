@@ -420,8 +420,8 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
           if (group.description) lines.push(group.description);
           lines.push("| USP | 상세 내용 |");
           lines.push("|---|---|");
-          for (const u of group.items) {
-            lines.push(`| ${u.item || ""} | ${u.detail || ""} |`);
+          for (const u of (group.items || [])) {
+            lines.push(`| ${u?.item || ""} | ${u?.detail || ""} |`);
           }
           lines.push("");
         }
@@ -1065,10 +1065,10 @@ function BriefPreview({ data }: { data: BriefData }) {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-100">
-                        {group.items.map((u, i) => (
+                        {(group.items || []).map((u, i) => (
                           <tr key={i} className="hover:bg-blue-50/50">
-                            <td className="px-3 py-2 font-bold text-gray-900">{u.item}</td>
-                            <td className="px-3 py-2 text-gray-700">{u.detail}</td>
+                            <td className="px-3 py-2 font-bold text-gray-900">{u?.item || ''}</td>
+                            <td className="px-3 py-2 text-gray-700">{u?.detail || ''}</td>
                           </tr>
                         ))}
                       </tbody>
