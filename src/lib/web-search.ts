@@ -1,4 +1,5 @@
-// 웹 검색 기능 - Puppeteer 기반 (안정적)
+// 웹 검색 기능 - 유료 API 우선, Puppeteer 폴백
+// 검색 우선순위: Serper.dev (Google) → Naver API → Brave HTML → DuckDuckGo → SearXNG → Puppeteer
 
 import puppeteer from 'puppeteer';
 
@@ -12,11 +13,10 @@ let browserInstance: any = null;
 
 async function getBrowser() {
   if (!browserInstance || !browserInstance.isConnected()) {
-    // Docker 컨테이너에서는 시스템 Chromium 사용, 로컬에서는 Puppeteer 번들 사용
     const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
     console.log(`[WebSearch] Launching browser, executablePath: ${executablePath || 'bundled'}`);
     browserInstance = await puppeteer.launch({
-      headless: 'shell',  // 'shell' 모드 = headless의 경량 모드 (Docker 호환성 높음)
+      headless: 'shell',
       executablePath,
       args: [
         '--no-sandbox',
@@ -29,7 +29,7 @@ async function getBrowser() {
         '--no-first-run',
         '--no-default-browser-check',
         '--disable-background-networking',
-        '--disable-breakpad',               // crashpad 대신 breakpad 비활성화
+        '--disable-breakpad',
         '--disable-component-update',
         '--disable-domain-reliability',
         '--disable-features=AudioServiceOutOfProcess',
@@ -38,7 +38,7 @@ async function getBrowser() {
       ],
       env: {
         ...process.env,
-        CHROME_CRASHPAD_PIPE_NAME: '1',     // crashpad 파이프 우회
+        CHROME_CRASHPAD_PIPE_NAME: '1',
       },
     });
   }
@@ -48,7 +48,29 @@ async function getBrowser() {
 export async function webSearch(query: string): Promise<SearchResult[]> {
   console.log(`[WebSearch] 검색 시작: "${query}"`);
 
-  // 1차: Brave Search (HTML 스크래핑, 서버 IP에서 가장 안정적)
+  // ===== 1차: Serper.dev (유료 Google Search API — 가장 정확하고 안정적) =====
+  try {
+    const results = await serperSearch(query);
+    if (results.length > 0) {
+      console.log(`[WebSearch] ✅ Serper.dev 검색 성공: ${results.length}개 결과`);
+      return results;
+    }
+  } catch (e: any) {
+    console.error('[WebSearch] Serper.dev 검색 실패:', e.message);
+  }
+
+  // ===== 2차: Naver Search API (유료 — 한국 시장 데이터에 특화) =====
+  try {
+    const results = await naverAPISearch(query);
+    if (results.length > 0) {
+      console.log(`[WebSearch] ✅ Naver API 검색 성공: ${results.length}개 결과`);
+      return results;
+    }
+  } catch (e: any) {
+    console.error('[WebSearch] Naver API 검색 실패:', e.message);
+  }
+
+  // ===== 3차: Brave Search (무료 HTML 스크래핑) =====
   try {
     const results = await braveSearch(query);
     if (results.length > 0) {
@@ -59,7 +81,7 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     console.error('[WebSearch] Brave 검색 실패:', e.message);
   }
 
-  // 2차: DuckDuckGo HTML
+  // ===== 4차: DuckDuckGo HTML =====
   try {
     const results = await duckDuckGoSearch(query);
     if (results.length > 0) {
@@ -70,7 +92,7 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     console.error('[WebSearch] DuckDuckGo 검색 실패:', e.message);
   }
 
-  // 3차: SearXNG 공개 인스턴스 (다중 검색엔진 메타서치)
+  // ===== 5차: SearXNG 메타서치 =====
   try {
     const results = await searxngSearch(query);
     if (results.length > 0) {
@@ -81,38 +103,179 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     console.error('[WebSearch] SearXNG 검색 실패:', e.message);
   }
 
-  // 4차: Google 검색 (Puppeteer — Docker에서 불안정할 수 있음)
+  // ===== 6차: Google Puppeteer (최후의 수단) =====
   try {
     const results = await googleSearchPuppeteer(query);
     if (results.length > 0) {
-      console.log(`[WebSearch] Google 검색 성공: ${results.length}개 결과`);
+      console.log(`[WebSearch] Google Puppeteer 검색 성공: ${results.length}개 결과`);
       return results;
     }
   } catch (e: any) {
-    console.error('[WebSearch] Google 검색 실패:', e.message);
+    console.error('[WebSearch] Google Puppeteer 검색 실패:', e.message);
   }
 
-  // 5차: Naver 검색 (Puppeteer)
+  // ===== 7차: Naver Puppeteer =====
   try {
     const results = await naverSearchPuppeteer(query);
     if (results.length > 0) {
-      console.log(`[WebSearch] Naver 검색 성공: ${results.length}개 결과`);
+      console.log(`[WebSearch] Naver Puppeteer 검색 성공: ${results.length}개 결과`);
       return results;
     }
   } catch (e: any) {
-    console.error('[WebSearch] Naver 검색 실패:', e.message);
+    console.error('[WebSearch] Naver Puppeteer 검색 실패:', e.message);
   }
 
-  console.error('[WebSearch] 모든 검색 방법 실패');
+  console.error('[WebSearch] ❌ 모든 검색 방법 실패');
   return [];
 }
 
-// Brave Search (HTML 스크래핑 — API 키 불필요, 서버 IP에서도 안정적)
+
+// ============================================================
+// 유료 API 검색 (안정적, 고품질)
+// ============================================================
+
+// Serper.dev — Google Search JSON API ($50/월 50K 쿼리 또는 무료 2,500회)
+// https://serper.dev
+async function serperSearch(query: string): Promise<SearchResult[]> {
+  const apiKey = process.env.SERPER_API_KEY;
+  if (!apiKey) {
+    console.log('[Serper] API 키 없음 — 스킵');
+    return [];
+  }
+
+  const res = await fetch('https://google.serper.dev/search', {
+    method: 'POST',
+    headers: {
+      'X-API-KEY': apiKey,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      q: query,
+      gl: 'kr',
+      hl: 'ko',
+      num: 10,
+    }),
+    signal: AbortSignal.timeout(10000),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`Serper ${res.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const data = await res.json();
+  const results: SearchResult[] = [];
+
+  // Knowledge Graph (있으면 최상단에 추가)
+  if (data.knowledgeGraph) {
+    const kg = data.knowledgeGraph;
+    if (kg.description) {
+      results.push({
+        title: kg.title || query,
+        url: kg.website || kg.descriptionLink || '',
+        snippet: kg.description.substring(0, 300),
+      });
+    }
+  }
+
+  // Organic Results (메인 검색 결과)
+  if (data.organic) {
+    for (const item of data.organic.slice(0, 10)) {
+      results.push({
+        title: item.title || '',
+        url: item.link || '',
+        snippet: item.snippet || '',
+      });
+    }
+  }
+
+  // People Also Ask (추가 인사이트)
+  if (data.peopleAlsoAsk && results.length < 8) {
+    for (const item of data.peopleAlsoAsk.slice(0, 3)) {
+      if (item.link && !results.some(r => r.url === item.link)) {
+        results.push({
+          title: item.question || '',
+          url: item.link || '',
+          snippet: item.snippet || '',
+        });
+      }
+    }
+  }
+
+  return results.slice(0, 10);
+}
+
+// Naver Search API — 네이버 공식 검색 API (하루 25,000회 무료)
+// https://developers.naver.com/apps/#/register (검색 API 등록)
+async function naverAPISearch(query: string): Promise<SearchResult[]> {
+  const clientId = process.env.NAVER_SEARCH_CLIENT_ID;
+  const clientSecret = process.env.NAVER_SEARCH_CLIENT_SECRET;
+  if (!clientId || !clientSecret) {
+    console.log('[NaverAPI] API 키 없음 — 스킵');
+    return [];
+  }
+
+  const allResults: SearchResult[] = [];
+
+  // 블로그 + 웹문서 + 뉴스를 동시에 검색 (한국 시장 데이터 극대화)
+  const searchTypes = [
+    { type: 'webkr', display: 5 },    // 웹문서
+    { type: 'blog', display: 5 },      // 블로그
+    { type: 'news', display: 3 },      // 뉴스
+    { type: 'shop', display: 3 },      // 쇼핑 (제품 시장조사용)
+  ];
+
+  const searches = searchTypes.map(async ({ type, display }) => {
+    try {
+      const url = `https://openapi.naver.com/v1/search/${type}.json?query=${encodeURIComponent(query)}&display=${display}&sort=sim`;
+      const res = await fetch(url, {
+        headers: {
+          'X-Naver-Client-Id': clientId,
+          'X-Naver-Client-Secret': clientSecret,
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) return [];
+      const data = await res.json();
+
+      return (data.items || []).map((item: any) => ({
+        title: (item.title || '').replace(/<\/?b>/g, ''),
+        url: item.link || item.originallink || '',
+        snippet: (item.description || '').replace(/<\/?b>/g, '').substring(0, 300),
+      }));
+    } catch {
+      return [];
+    }
+  });
+
+  const resultGroups = await Promise.all(searches);
+
+  // 결과를 교차 배치 (웹문서, 블로그, 뉴스 순으로 섞기)
+  const seenUrls = new Set<string>();
+  for (const group of resultGroups) {
+    for (const item of group) {
+      if (!seenUrls.has(item.url) && item.url) {
+        seenUrls.add(item.url);
+        allResults.push(item);
+      }
+    }
+  }
+
+  return allResults.slice(0, 10);
+}
+
+
+// ============================================================
+// 무료 검색 (폴백)
+// ============================================================
+
+// Brave Search (HTML 스크래핑 — Svelte 기반 구조 파싱)
 async function braveSearch(query: string): Promise<SearchResult[]> {
   const url = `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web`;
   const res = await fetch(url, {
     headers: {
-      'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
       'Accept-Language': 'ko-KR,ko;q=0.9,en;q=0.8',
     },
@@ -122,77 +285,43 @@ async function braveSearch(query: string): Promise<SearchResult[]> {
   if (!res.ok) return [];
   const html = await res.text();
   const results: SearchResult[] = [];
+  const seenUrls = new Set<string>();
 
-  // Brave 검색 결과 파싱 — <a class="result-header"> 또는 <a class="heading-serpresult">
-  const resultRegex = /<div[^>]+class="snippet[^"]*"[^>]*>[\s\S]*?<a[^>]+href="(https?:\/\/[^"]+)"[^>]*>([\s\S]*?)<\/a>[\s\S]*?<p[^>]*class="snippet-description"[^>]*>([\s\S]*?)<\/p>/gi;
+  // Brave Svelte 구조: <a href="외부URL"> 패턴
+  const aTagRegex = /<a[^>]*href="(https?:\/\/(?!search\.brave\.com|brave\.com)[^"]+)"[^>]*>([\s\S]*?)<\/a>/gi;
   let match;
-  while ((match = resultRegex.exec(html)) !== null && results.length < 8) {
+  while ((match = aTagRegex.exec(html)) !== null && results.length < 10) {
     const href = match[1];
-    const title = match[2].replace(/<[^>]+>/g, '').trim();
-    const snippet = match[3].replace(/<[^>]+>/g, '').trim();
-    if (title && href) {
-      results.push({ title, url: href, snippet });
-    }
-  }
+    const rawText = match[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
-  // 위 패턴이 안 맞으면 더 일반적인 파싱 시도
-  if (results.length === 0) {
-    const altRegex = /<a[^>]+href="(https?:\/\/(?!search\.brave)[^"]+)"[^>]*>[^<]*<span[^>]*>([\s\S]*?)<\/span>/gi;
-    while ((match = altRegex.exec(html)) !== null && results.length < 8) {
-      const href = match[1];
-      const title = match[2].replace(/<[^>]+>/g, '').trim();
-      if (title && title.length > 5 && href && !href.includes('brave.com')) {
-        results.push({ title, url: href, snippet: '' });
+    if (rawText.length >= 10 && rawText.length <= 200 && !seenUrls.has(href) &&
+        !href.includes('brave.com') && !href.includes('/search?')) {
+      const cleanTitle = rawText.replace(/[a-zA-Z0-9.-]+\.(com|co\.kr|net|org|kr)[^a-zA-Z가-힣]*[›»>]\s*/g, '').trim();
+      if (cleanTitle.length >= 5) {
+        seenUrls.add(href);
+        results.push({ title: cleanTitle, url: href, snippet: '' });
       }
     }
   }
 
-  return results;
-}
-
-// SearXNG 공개 인스턴스 (다중 검색엔진 메타서치, JSON API 지원)
-async function searxngSearch(query: string): Promise<SearchResult[]> {
-  const instances = [
-    'https://searx.be',
-    'https://search.ononoki.org',
-    'https://searx.tiekoetter.com',
-    'https://search.inetol.net',
-    'https://priv.au',
-  ];
-
-  for (const instance of instances) {
-    try {
-      const url = `${instance}/search?q=${encodeURIComponent(query)}&format=json&language=ko-KR`;
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'application/json',
-        },
-        signal: AbortSignal.timeout(8000),
-      });
-
-      if (!res.ok) continue;
-
-      // JSON인지 확인
-      const contentType = res.headers.get('content-type') || '';
-      if (!contentType.includes('json')) continue;
-
-      const data = await res.json();
-      if (data.results && data.results.length > 0) {
-        return data.results.slice(0, 8).map((r: any) => ({
-          title: r.title || '',
-          url: r.url || '',
-          snippet: (r.content || '').substring(0, 200),
-        }));
+  // snippet 보강
+  if (results.length > 0) {
+    for (const result of results) {
+      const urlIdx = html.indexOf(result.url);
+      if (urlIdx > 0) {
+        const after = html.substring(urlIdx, urlIdx + 800);
+        const textBlocks = after.match(/>([^<]{40,300})</g);
+        if (textBlocks && textBlocks.length > 0) {
+          result.snippet = textBlocks[0].substring(1).trim();
+        }
       }
-    } catch {
-      continue;
     }
   }
-  return [];
+
+  return results.slice(0, 8);
 }
 
-// DuckDuckGo HTML 검색 (Puppeteer 불필요)
+// DuckDuckGo HTML 검색
 async function duckDuckGoSearch(query: string): Promise<SearchResult[]> {
   const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -219,7 +348,6 @@ async function duckDuckGoSearch(query: string): Promise<SearchResult[]> {
   const html = await res.text();
   const results: SearchResult[] = [];
 
-  // DuckDuckGo HTML 결과 파싱
   const resultRegex = /<a[^>]+class="result__a"[^>]+href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi;
   const snippetRegex = /<a[^>]+class="result__snippet"[^>]*>([\s\S]*?)<\/a>/gi;
 
@@ -228,7 +356,6 @@ async function duckDuckGoSearch(query: string): Promise<SearchResult[]> {
   while ((match = resultRegex.exec(html)) !== null) {
     let href = match[1];
     const title = match[2].replace(/<[^>]+>/g, '').trim();
-    // DuckDuckGo redirect URL 디코딩
     if (href.includes('uddg=')) {
       const uddgMatch = href.match(/uddg=([^&]+)/);
       if (uddgMatch) href = decodeURIComponent(uddgMatch[1]);
@@ -254,6 +381,51 @@ async function duckDuckGoSearch(query: string): Promise<SearchResult[]> {
   return results;
 }
 
+// SearXNG 공개 인스턴스 (다중 검색엔진 메타서치)
+async function searxngSearch(query: string): Promise<SearchResult[]> {
+  const instances = [
+    'https://searx.be',
+    'https://search.ononoki.org',
+    'https://searx.tiekoetter.com',
+    'https://search.inetol.net',
+    'https://priv.au',
+  ];
+
+  for (const instance of instances) {
+    try {
+      const url = `${instance}/search?q=${encodeURIComponent(query)}&format=json&language=ko-KR`;
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+          'Accept': 'application/json',
+        },
+        signal: AbortSignal.timeout(8000),
+      });
+
+      if (!res.ok) continue;
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('json')) continue;
+
+      const data = await res.json();
+      if (data.results && data.results.length > 0) {
+        return data.results.slice(0, 8).map((r: any) => ({
+          title: r.title || '',
+          url: r.url || '',
+          snippet: (r.content || '').substring(0, 200),
+        }));
+      }
+    } catch {
+      continue;
+    }
+  }
+  return [];
+}
+
+
+// ============================================================
+// Puppeteer 기반 검색 (최후의 수단)
+// ============================================================
+
 async function googleSearchPuppeteer(query: string): Promise<SearchResult[]> {
   const browser = await getBrowser();
   const page = await browser.newPage();
@@ -273,12 +445,11 @@ async function googleSearchPuppeteer(query: string): Promise<SearchResult[]> {
 
     const results = await page.evaluate(() => {
       const items: { title: string; url: string; snippet: string }[] = [];
-      // h3 기준으로 부모 링크 찾기 (Google HTML 구조 변경에 강건)
       document.querySelectorAll('h3').forEach((h3) => {
         const a = h3.closest('a') || (h3.parentElement ? h3.parentElement.closest('a') : null);
         if (a && a.href && a.href.startsWith('http') && !a.href.includes('google.com')) {
           let snippet = '';
-          const container = h3.closest('[data-sokoban-container]') || (h3.closest('[lang]')) || (h3.parentElement ? h3.parentElement.parentElement?.parentElement : null);
+          const container = h3.closest('[data-sokoban-container]') || h3.closest('[lang]') || h3.parentElement?.parentElement?.parentElement;
           if (container) {
             const spans = container.querySelectorAll('span, em, div');
             for (const s of Array.from(spans)) {
@@ -289,11 +460,7 @@ async function googleSearchPuppeteer(query: string): Promise<SearchResult[]> {
               }
             }
           }
-          items.push({
-            title: h3.textContent || '',
-            url: a.href,
-            snippet,
-          });
+          items.push({ title: h3.textContent || '', url: a.href, snippet });
         }
       });
       return items.slice(0, 8);
@@ -320,13 +487,11 @@ async function naverSearchPuppeteer(query: string): Promise<SearchResult[]> {
 
     const results = await page.evaluate(() => {
       const items: { title: string; url: string; snippet: string }[] = [];
-
-      // 네이버 검색 결과 (웹사이트/블로그/카페 등)
       const selectors = [
-        '.total_wrap .total_tit a',        // 통합검색
-        '.api_txt_lines.total_tit',        // 웹사이트
-        '.news_tit',                        // 뉴스
-        '.link_tit',                        // 블로그
+        '.total_wrap .total_tit a',
+        '.api_txt_lines.total_tit',
+        '.news_tit',
+        '.link_tit',
       ];
 
       for (const selector of selectors) {
@@ -335,7 +500,6 @@ async function naverSearchPuppeteer(query: string): Promise<SearchResult[]> {
           if (a) {
             const href = a.getAttribute('href') || '';
             const title = a.textContent || '';
-            // 주변 텍스트에서 snippet 추출
             const parent = a.closest('.total_wrap, .bx, .news_wrap, .api_txt_lines');
             const snippetEl = parent ? parent.querySelector('.dsc_txt, .total_dsc, .news_dsc, .api_txt_lines:not(.total_tit)') : null;
             const snippet = snippetEl ? (snippetEl.textContent || '').substring(0, 200) : '';
@@ -356,21 +520,38 @@ async function naverSearchPuppeteer(query: string): Promise<SearchResult[]> {
   }
 }
 
+
+// ============================================================
+// 웹페이지 콘텐츠 가져오기
+// 우선순위: Jina Reader API → fetch API → Google Cache → Puppeteer
+// ============================================================
+
 export async function fetchWebPage(url: string): Promise<string> {
   console.log(`[FetchPage] 페이지 로드 시작: ${url}`);
 
-  // 1차: fetch API (Puppeteer 불필요, 빠르고 안정적)
+  // ===== 1차: Jina Reader API (무료, 봇 차단 우회, 클린 텍스트 추출) =====
+  try {
+    const text = await fetchWithJinaReader(url);
+    if (text && text.length > 200) {
+      console.log(`[FetchPage] ✅ Jina Reader 성공: ${text.length}자`);
+      return text;
+    }
+  } catch (e: any) {
+    console.error(`[FetchPage] Jina Reader 실패: ${e.message}`);
+  }
+
+  // ===== 2차: fetch API (빠르고 단순) =====
   try {
     const text = await fetchPageWithFetchAPI(url);
     if (text && text.length > 100) {
-      console.log(`[FetchPage] fetch API 성공: ${text.length}자`);
+      console.log(`[FetchPage] ✅ fetch API 성공: ${text.length}자`);
       return text;
     }
   } catch (e: any) {
     console.error(`[FetchPage] fetch API 실패: ${e.message}`);
   }
 
-  // 2차: 캐시 서비스 (Google Cache, Web Archive 등)
+  // ===== 3차: 캐시 서비스 =====
   try {
     const text = await fetchFromCache(url);
     if (text && text.length > 100) {
@@ -381,7 +562,7 @@ export async function fetchWebPage(url: string): Promise<string> {
     console.error(`[FetchPage] 캐시 서비스 실패: ${e.message}`);
   }
 
-  // 3차: Puppeteer (JS 렌더링이 필요한 SPA 사이트용)
+  // ===== 4차: Puppeteer (JS 렌더링이 필요한 SPA 사이트용) =====
   try {
     const text = await fetchPageWithPuppeteer(url);
     if (text && text.length > 50) {
@@ -395,7 +576,41 @@ export async function fetchWebPage(url: string): Promise<string> {
   return `[웹페이지 로드 실패] URL: ${url}. 사이트가 봇 접근을 차단하거나 네트워크 문제일 수 있습니다.`;
 }
 
-// fetch API로 페이지 로드 (대부분의 사이트에서 작동, 빠름)
+// Jina Reader API — URL을 깨끗한 마크다운/텍스트로 변환 (무료, 높은 성공률)
+// 쇼핑몰, 봇 차단 사이트도 잘 읽음
+async function fetchWithJinaReader(url: string): Promise<string> {
+  const jinaUrl = `https://r.jina.ai/${url}`;
+
+  const headers: Record<string, string> = {
+    'Accept': 'text/plain',
+    'User-Agent': 'Mozilla/5.0',
+  };
+
+  // Jina API 키가 있으면 사용 (선택사항 — 키 없어도 무료로 분당 20회 가능)
+  const jinaKey = process.env.JINA_API_KEY;
+  if (jinaKey) {
+    headers['Authorization'] = `Bearer ${jinaKey}`;
+  }
+
+  const res = await fetch(jinaUrl, {
+    headers,
+    signal: AbortSignal.timeout(15000),
+  });
+
+  if (!res.ok) {
+    throw new Error(`Jina ${res.status}`);
+  }
+
+  const text = await res.text();
+
+  // 너무 짧거나 에러 페이지인 경우 무시
+  if (text.length < 100) return '';
+
+  // 5000자로 제한 (시스템 프롬프트에 넣을 양)
+  return text.substring(0, 8000);
+}
+
+// fetch API로 페이지 로드
 async function fetchPageWithFetchAPI(url: string): Promise<string> {
   const userAgents = [
     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36',
@@ -419,14 +634,11 @@ async function fetchPageWithFetchAPI(url: string): Promise<string> {
   if (!res.ok) return '';
 
   const html = await res.text();
-
-  // HTML에서 텍스트 추출 (script, style 제거)
   return extractTextFromHTML(html);
 }
 
 // HTML에서 텍스트 추출 유틸리티
 function extractTextFromHTML(html: string): string {
-  // script, style, nav, footer, header 태그 제거
   let cleaned = html
     .replace(/<script[\s\S]*?<\/script>/gi, '')
     .replace(/<style[\s\S]*?<\/style>/gi, '')
@@ -436,10 +648,8 @@ function extractTextFromHTML(html: string): string {
     .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
     .replace(/<noscript[\s\S]*?<\/noscript>/gi, '');
 
-  // 모든 HTML 태그 제거
   cleaned = cleaned.replace(/<[^>]+>/g, ' ');
 
-  // HTML 엔티티 디코딩
   cleaned = cleaned
     .replace(/&amp;/g, '&')
     .replace(/&lt;/g, '<')
@@ -448,7 +658,6 @@ function extractTextFromHTML(html: string): string {
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, ' ');
 
-  // 연속 공백/줄바꿈 정리
   cleaned = cleaned
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
@@ -457,9 +666,8 @@ function extractTextFromHTML(html: string): string {
   return cleaned.substring(0, 5000);
 }
 
-// Google 웹캐시 등에서 페이지 로드 시도
+// Google 웹캐시에서 페이지 로드
 async function fetchFromCache(url: string): Promise<string> {
-  // Google 캐시
   try {
     const cacheUrl = `https://webcache.googleusercontent.com/search?q=cache:${encodeURIComponent(url)}`;
     const res = await fetch(cacheUrl, {
@@ -478,7 +686,7 @@ async function fetchFromCache(url: string): Promise<string> {
   return '';
 }
 
-// Puppeteer로 페이지 로드 (JS 렌더링 필요 시 폴백)
+// Puppeteer로 페이지 로드 (JS 렌더링 필요 시)
 async function fetchPageWithPuppeteer(url: string): Promise<string> {
   const browser = await getBrowser();
   const page = await browser.newPage();
