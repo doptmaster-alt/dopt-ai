@@ -405,8 +405,14 @@ export function updateProjectStep(id: number, step: number) {
 }
 
 export function deleteProject(id: number) {
-  getDb().prepare('DELETE FROM messages WHERE project_id = ?').run(id);
-  return getDb().prepare('DELETE FROM projects WHERE id = ?').run(id);
+  const db = getDb();
+  // FOREIGN KEY 제약 때문에 자식 테이블부터 삭제해야 함
+  db.prepare('DELETE FROM messages WHERE project_id = ?').run(id);
+  db.prepare('DELETE FROM step_data WHERE project_id = ?').run(id);
+  try { db.prepare('DELETE FROM project_files WHERE project_id = ?').run(id); } catch {}
+  try { db.prepare('DELETE FROM ai_reviews WHERE project_id = ?').run(id); } catch {}
+  try { db.prepare('DELETE FROM ai_learnings WHERE project_id = ?').run(id); } catch {}
+  return db.prepare('DELETE FROM projects WHERE id = ?').run(id);
 }
 
 // Message queries
