@@ -586,11 +586,10 @@ async function fetchWithJinaReader(url: string): Promise<string> {
     'User-Agent': 'Mozilla/5.0',
   };
 
-  // Jina API 키가 있으면 사용 (선택사항 — 키 없어도 무료로 분당 20회 가능)
-  const jinaKey = process.env.JINA_API_KEY;
-  if (jinaKey) {
-    headers['Authorization'] = `Bearer ${jinaKey}`;
-  }
+  // Jina API 키는 선택사항 — 키 없어도 무료로 분당 20회 가능
+  // 참고: Jina 키 인증 서버 불안정할 수 있으므로 키 없이 사용 우선
+  // const jinaKey = process.env.JINA_API_KEY;
+  // if (jinaKey) { headers['Authorization'] = `Bearer ${jinaKey}`; }
 
   const res = await fetch(jinaUrl, {
     headers,
