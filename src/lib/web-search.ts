@@ -529,7 +529,18 @@ async function naverSearchPuppeteer(query: string): Promise<SearchResult[]> {
 export async function fetchWebPage(url: string): Promise<string> {
   console.log(`[FetchPage] 페이지 로드 시작: ${url}`);
 
-  // ===== 1차: Jina Reader API (무료, 봇 차단 우회, 클린 텍스트 추출) =====
+  // ===== 1차: ScrapingBee (유료, 봇 차단 우회 최강) =====
+  try {
+    const text = await fetchWithScrapingBee(url);
+    if (text && text.length > 200) {
+      console.log(`[FetchPage] ✅ ScrapingBee 성공: ${text.length}자`);
+      return text;
+    }
+  } catch (e: any) {
+    console.error(`[FetchPage] ScrapingBee 실패: ${e.message}`);
+  }
+
+  // ===== 2차: Jina Reader (무료, 클린 텍스트 추출) =====
   try {
     const text = await fetchWithJinaReader(url);
     if (text && text.length > 200) {
@@ -540,7 +551,7 @@ export async function fetchWebPage(url: string): Promise<string> {
     console.error(`[FetchPage] Jina Reader 실패: ${e.message}`);
   }
 
-  // ===== 2차: fetch API (빠르고 단순) =====
+  // ===== 3차: fetch API (빠르고 단순) =====
   try {
     const text = await fetchPageWithFetchAPI(url);
     if (text && text.length > 100) {
@@ -551,7 +562,7 @@ export async function fetchWebPage(url: string): Promise<string> {
     console.error(`[FetchPage] fetch API 실패: ${e.message}`);
   }
 
-  // ===== 3차: 캐시 서비스 =====
+  // ===== 4차: 캐시 서비스 =====
   try {
     const text = await fetchFromCache(url);
     if (text && text.length > 100) {
@@ -562,7 +573,7 @@ export async function fetchWebPage(url: string): Promise<string> {
     console.error(`[FetchPage] 캐시 서비스 실패: ${e.message}`);
   }
 
-  // ===== 4차: Puppeteer (JS 렌더링이 필요한 SPA 사이트용) =====
+  // ===== 5차: Puppeteer (JS 렌더링이 필요한 SPA 사이트용) =====
   try {
     const text = await fetchPageWithPuppeteer(url);
     if (text && text.length > 50) {
@@ -574,6 +585,44 @@ export async function fetchWebPage(url: string): Promise<string> {
   }
 
   return `[웹페이지 로드 실패] URL: ${url}. 사이트가 봇 접근을 차단하거나 네트워크 문제일 수 있습니다.`;
+}
+
+// ScrapingBee — 주거용 프록시 + JS 렌더링으로 봇 차단 사이트도 접근 가능
+// 쿠팡, 네이버 스마트스토어, 올리브영 등 쇼핑몰 접근에 최적
+async function fetchWithScrapingBee(url: string): Promise<string> {
+  const apiKey = process.env.SCRAPINGBEE_API_KEY;
+  if (!apiKey) {
+    console.log('[ScrapingBee] API 키 없음 — 스킵');
+    return '';
+  }
+
+  const params = new URLSearchParams({
+    api_key: apiKey,
+    url: url,
+    render_js: 'false',        // JS 렌더링 불필요 시 크레딧 절약 (1 대신 5)
+    extract_rules: '',          // 전체 텍스트 추출
+    premium_proxy: 'true',     // 주거용 프록시 (쇼핑몰 차단 우회)
+    country_code: 'kr',         // 한국 IP
+  });
+
+  // 쇼핑몰은 JS 렌더링 필요
+  const needsJs = /coupang\.com|smartstore\.naver|oliveyoung\.co\.kr|11st\.co\.kr|gmarket\.co\.kr/i.test(url);
+  if (needsJs) {
+    params.set('render_js', 'true');
+    params.set('wait', '3000');  // JS 로딩 대기
+  }
+
+  const res = await fetch(`https://app.scrapingbee.com/api/v1?${params.toString()}`, {
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`ScrapingBee ${res.status}: ${errText.substring(0, 200)}`);
+  }
+
+  const html = await res.text();
+  return extractTextFromHTML(html);
 }
 
 // Jina Reader API — URL을 깨끗한 마크다운/텍스트로 변환 (무료, 높은 성공률)

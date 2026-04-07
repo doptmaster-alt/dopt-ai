@@ -447,7 +447,8 @@ export default function ProjectChat() {
                 console.log("[SSE] formUpdate received, currentStep:", currentStep, "sections:", parsed.formUpdate.sections?.length || 0);
                 // 모든 단계 즉시 적용 — DB에 이미 저장 완료, 바로 기획안 패널 리프레시
                 setFormRefreshKey(Date.now());
-                if (viewMode === "chat") setViewMode("split");
+                // 시장조사(step 1)에서는 패널 자동 전환 안 함 — 채팅에서만 표시
+                if (viewMode === "chat" && currentStep !== 1) setViewMode("split");
                 if (currentStep >= 3 && currentStep <= 4 && parsed.formUpdate.sections?.length > 0) {
                   setPlanApplied(true);
                   setPendingPlanSections(0);
@@ -1123,8 +1124,26 @@ export default function ProjectChat() {
                   onStepComplete={() => updateStep(2)}
                   onWorkOrderAnalyze={handleWorkOrderAnalyze}
                 />
-              ) : /* STEP 1: 시장조사 / STEP 2: 브리프 작성 */
-              currentStep >= 1 && currentStep <= 2 ? (
+              ) : /* STEP 1: 시장조사 — 패널 없음, 채팅에서만 표시 */
+              currentStep === 1 ? (
+                <div className="h-full flex items-center justify-center bg-gray-50">
+                  <div className="max-w-sm text-center px-6">
+                    <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-3xl">🔍</div>
+                    <h3 className="text-lg font-bold text-gray-900 mb-2">시장조사 진행 중</h3>
+                    <p className="text-sm text-gray-500 mb-4">AI가 시장을 분석하고 있습니다. 채팅창에서 결과를 확인하세요.</p>
+                    <button
+                      onClick={() => {
+                        updateStep(2);
+                        sendMessage("시장조사 결과를 바탕으로 브리프를 작성해줘", 2);
+                      }}
+                      className="w-full py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition text-sm"
+                    >
+                      🚀 브리프 작성하기
+                    </button>
+                  </div>
+                </div>
+              ) : /* STEP 2: 브리프 작성 */
+              currentStep === 2 ? (
                 <BriefPanel
                   projectId={parseInt(projectId)}
                   currentStep={currentStep}
@@ -1133,15 +1152,8 @@ export default function ProjectChat() {
                     updateStep(3);
                   }}
                   onRequestPlan={(msg) => {
-                    if (currentStep === 1) {
-                      // 시장조사 → 브리프 작성 (step 2로 전환 + step override로 race condition 방지)
-                      updateStep(2);
-                      sendMessage(msg || "시장조사 결과를 바탕으로 브리프를 작성해줘", 2);
-                    } else {
-                      // 브리프 → 기획안 작성 (step 3으로 전환 + step override)
-                      updateStep(3);
-                      sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘", 3);
-                    }
+                    updateStep(3);
+                    sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘", 3);
                   }}
                 />
               ) : /* STEP 3: 기획안 작성 */
