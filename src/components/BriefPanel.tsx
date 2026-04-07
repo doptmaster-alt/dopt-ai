@@ -612,48 +612,88 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
     );
   }
 
+  // 스텝별 타이틀/아이콘
+  const panelTitle = currentStep === 1 ? "시장조사 리포트" : "노션 브리프";
+  const panelIcon = currentStep === 1 ? "📊" : "📋";
+
   if (isEmpty) {
     return (
       <div className="h-full flex flex-col bg-gray-50">
         <div className="flex-shrink-0 bg-white border-b border-gray-200 px-4 py-3">
           <div className="flex items-center gap-2">
-            <span className="text-sm">📋</span>
-            <span className="text-sm font-semibold text-gray-800">노션 브리프</span>
-            <span className="text-xs text-gray-400">STEP {currentStep}</span>
+            <span className="text-sm">{panelIcon}</span>
+            <span className="text-sm font-semibold text-gray-800">{panelTitle}</span>
           </div>
         </div>
         <div className="flex-1 flex items-center justify-center p-8">
           <div className="max-w-md w-full text-center">
-            <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-3xl">
-              📋
-            </div>
-            <h3 className="text-lg font-bold text-gray-900 mb-2">브리프 미작성</h3>
-            <p className="text-sm text-gray-500 mb-6">
-              AI에게 브리프 작성을 요청하면 여기서 노션에 바로 붙여넣을 수 있는 형태로 확인할 수 있어요
-            </p>
-            <div className="space-y-3 text-left">
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
-                <span className="text-lg mt-0.5">1️⃣</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">AI에게 브리프 요청</p>
-                  <p className="text-xs text-gray-500">"브리프 작성해줘" 또는 파일을 첨부하고 요청하세요</p>
+            {currentStep === 1 ? (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-800 flex items-center justify-center text-3xl">
+                  🔍
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
-                <span className="text-lg mt-0.5">2️⃣</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">브리프 자동 정리</p>
-                  <p className="text-xs text-gray-500">AI가 디옵트 브리프 양식에 맞게 자동으로 정리합니다</p>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">시장조사 진행 중</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  AI가 시장조사를 완료하면 여기에 리포트가 자동으로 표시됩니다
+                </p>
+                <div className="space-y-3 text-left">
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">🔍</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">경쟁사 & 트렌드 분석</p>
+                      <p className="text-xs text-gray-500">AI가 시장, 경쟁사, 키워드를 심층 조사합니다</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">📊</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">리포트 자동 생성</p>
+                      <p className="text-xs text-gray-500">조사 결과가 이 패널에 정리되어 표시됩니다</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">📝</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">브리프 작성으로 진행</p>
+                      <p className="text-xs text-gray-500">리포트 확인 후 "브리프 작성하기" 버튼으로 다음 단계로</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-              <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
-                <span className="text-lg mt-0.5">3️⃣</span>
-                <div>
-                  <p className="text-sm font-medium text-gray-800">노션에 복사 붙여넣기</p>
-                  <p className="text-xs text-gray-500">"복사" 버튼을 클릭하면 노션에 바로 붙여넣을 수 있어요</p>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-br from-gray-700 to-gray-900 flex items-center justify-center text-3xl">
+                  📋
                 </div>
-              </div>
-            </div>
+                <h3 className="text-lg font-bold text-gray-900 mb-2">브리프 미작성</h3>
+                <p className="text-sm text-gray-500 mb-6">
+                  AI에게 브리프 작성을 요청하면 여기서 노션에 바로 붙여넣을 수 있는 형태로 확인할 수 있어요
+                </p>
+                <div className="space-y-3 text-left">
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">1️⃣</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">AI에게 브리프 요청</p>
+                      <p className="text-xs text-gray-500">"브리프 작성해줘" 또는 파일을 첨부하고 요청하세요</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">2️⃣</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">브리프 자동 정리</p>
+                      <p className="text-xs text-gray-500">AI가 디옵트 브리프 양식에 맞게 자동으로 정리합니다</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3 p-3 bg-white rounded-xl border border-gray-200">
+                    <span className="text-lg mt-0.5">3️⃣</span>
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">수정 & QC 후 확정</p>
+                      <p className="text-xs text-gray-500">브리프를 자유롭게 편집하고, QC 후 확정하여 기획안으로 진행합니다</p>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -666,8 +706,8 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
       <div className="flex-shrink-0 bg-white border-b border-gray-200 px-3 py-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-sm">📋</span>
-            <span className="text-sm font-semibold text-gray-800">노션 브리프</span>
+            <span className="text-sm">{panelIcon}</span>
+            <span className="text-sm font-semibold text-gray-800">{panelTitle}</span>
             {confirmed && <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded font-bold">확정됨</span>}
             {hasUnsaved && <span className="text-[10px] bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">미저장</span>}
           </div>
