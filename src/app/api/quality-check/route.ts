@@ -66,9 +66,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 기획안 로드
+  // 기획안 로드 (V2: step 3, fallback to old 4/5)
   let planData: any = null;
-  for (const step of [4, 5]) {
+  for (const step of [3, 4, 5]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);
@@ -79,9 +79,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 촬영콘티 로드
+  // 촬영콘티 로드 (V2: step 4, fallback to old 6/8)
   let contiData: any = null;
-  for (const step of [8, 6]) {
+  for (const step of [4, 6, 8]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);
@@ -89,9 +89,9 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // 디자인 가이드 메타 로드
+  // 디자인 가이드 메타 로드 (V2: step 6, fallback to old 8/10)
   let designMeta: any = null;
-  for (const step of [10, 8]) {
+  for (const step of [6, 8, 10]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);

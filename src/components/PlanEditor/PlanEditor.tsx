@@ -57,7 +57,7 @@ export default function PlanEditor({ projectId, currentStep, refreshKey, onExpor
   const loadData = useCallback(async () => {
     console.log("[PlanEditor] loadData called, projectId:", projectId, "currentStep:", currentStep);
     try {
-      const stepsToTry = [4, 5, currentStep]; // V2: step 4, fallback to old step 5
+      const stepsToTry = [3, 4, 5, currentStep]; // V2: step 3 (기획안), fallback to old step 4/5
       let bestData: PlanData | null = null;
       let bestStep = -1;
       let bestHasBlocks = false;
@@ -129,7 +129,7 @@ export default function PlanEditor({ projectId, currentStep, refreshKey, onExpor
         await fetch(`/api/projects/${projectId}/step-data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: 5, formData: data, status: "draft" }),
+          body: JSON.stringify({ step: 3, formData: data, status: "draft" }),
         });
         setSaveStatus("saved");
       } catch (e) {
@@ -340,7 +340,7 @@ export default function PlanEditor({ projectId, currentStep, refreshKey, onExpor
     // 먼저 DB에서 최신 데이터를 새로 로드
     let currentData = dataRef.current || planData;
     try {
-      const freshRes = await fetch(`/api/projects/${projectId}/step-data?step=4`);
+      const freshRes = await fetch(`/api/projects/${projectId}/step-data?step=3`);
       if (freshRes.ok) {
         const freshJson = await freshRes.json();
         if (freshJson.formData?.sections?.length > 0) {
@@ -727,7 +727,7 @@ export default function PlanEditor({ projectId, currentStep, refreshKey, onExpor
               <button
                 onClick={async () => {
                   try {
-                    const res = await fetch(`/api/projects/${projectId}/export-svg?step=4`);
+                    const res = await fetch(`/api/projects/${projectId}/export-svg?step=3`);
                     if (res.ok) {
                       const blob = await res.blob();
                       const url = URL.createObjectURL(blob);

@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 
 /**
- * GET /api/projects/[id]/export-svg?step=4
+ * GET /api/projects/[id]/export-svg?step=3
  * 기획안/브리프를 Figma 호환 SVG 파일로 내보내기
  * 레퍼런스 이미지와 나노바나나 디자인 이미지를 base64로 임베딩
  */
@@ -18,11 +18,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
 
   const { id } = await params;
   const projectId = parseInt(id);
-  const step = parseInt(req.nextUrl.searchParams.get('step') || '4');
+  const step = parseInt(req.nextUrl.searchParams.get('step') || '3');
 
-  // 기획안 데이터 로드 (step 4 우선, step 5 fallback)
+  // 기획안 데이터 로드 (V2: step 3 우선, fallback to old step 4/5)
   let data: any = null;
-  for (const tryStep of [4, 5, step]) {
+  for (const tryStep of [3, 4, 5, step]) {
     const sd = getStepData(projectId, tryStep);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);

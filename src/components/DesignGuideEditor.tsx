@@ -100,9 +100,9 @@ export default function DesignGuideEditor({ projectId, currentStep, refreshKey, 
   const loadAllData = useCallback(async () => {
     setLoading(true);
     try {
-      // 1. 기획안 로드 (step 4/5)
+      // 1. 기획안 로드 (V2: step 3, fallback to old step 4/5)
       let planData: any = null;
-      for (const step of [4, 5]) {
+      for (const step of [3, 4, 5]) {
         const res = await fetch(`/api/projects/${projectId}/step-data?step=${step}`);
         if (res.ok) {
           const json = await res.json();
@@ -123,9 +123,9 @@ export default function DesignGuideEditor({ projectId, currentStep, refreshKey, 
         setColorScheme(planData.colorScheme || "");
       }
 
-      // 2. 촬영콘티 로드 (step 8/6)
+      // 2. 촬영콘티 로드 (V2: step 4, fallback to old step 6/8)
       let contiData: any = null;
-      for (const step of [8, 6]) {
+      for (const step of [4, 6, 8]) {
         const res = await fetch(`/api/projects/${projectId}/step-data?step=${step}`);
         if (res.ok) {
           const json = await res.json();
@@ -153,8 +153,8 @@ export default function DesignGuideEditor({ projectId, currentStep, refreshKey, 
         setCutSectionMap(mapping);
       }
 
-      // 3. 디자인 가이드 메타 로드 (step 10/8)
-      for (const step of [10, 8]) {
+      // 3. 디자인 가이드 메타 로드 (V2: step 6, fallback to old step 8/10)
+      for (const step of [6, 8, 10]) {
         const res = await fetch(`/api/projects/${projectId}/step-data?step=${step}`);
         if (res.ok) {
           const json = await res.json();
@@ -201,7 +201,7 @@ export default function DesignGuideEditor({ projectId, currentStep, refreshKey, 
         await fetch(`/api/projects/${projectId}/step-data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: 10, formData: data, status: "draft" }),
+          body: JSON.stringify({ step: 6, formData: data, status: "draft" }),
         });
         setSaveStatus("saved");
       } catch {

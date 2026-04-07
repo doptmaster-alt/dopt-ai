@@ -110,8 +110,8 @@ export default function ContiPanel({ projectId, currentStep, refreshKey }: Props
         const allData = await res.json();
         const merged: ContiData = {};
         for (const d of allData) {
-          // V2: step 6 (촬영콘티 가이드) + V1 fallback: step 8-10
-          if ((d.step === 6 || (d.step >= 8 && d.step <= 10)) && d.formData) {
+          // V2: step 4 (촬영콘티 가이드) + V1 fallback: step 6, 8-10
+          if ((d.step === 4 || d.step === 6 || (d.step >= 8 && d.step <= 10)) && d.formData) {
             Object.assign(merged, d.formData);
           }
         }
@@ -137,7 +137,7 @@ export default function ContiPanel({ projectId, currentStep, refreshKey }: Props
         await fetch(`/api/projects/${projectId}/step-data`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ step: 8, formData: updatedData, status: "draft" }),
+          body: JSON.stringify({ step: 4, formData: updatedData, status: "draft" }),
         });
         setSaveStatus("saved");
       } catch (e) {

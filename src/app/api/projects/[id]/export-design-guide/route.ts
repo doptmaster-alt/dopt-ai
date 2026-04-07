@@ -19,9 +19,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   const projectId = parseInt(id);
   const project = getProject(projectId);
 
-  // ═══ 1. 기획안 로드 ═══
+  // ═══ 1. 기획안 로드 (V2: step 3, fallback to old 4/5) ═══
   let planData: any = null;
-  for (const step of [4, 5]) {
+  for (const step of [3, 4, 5]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);
@@ -36,9 +36,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     return NextResponse.json({ error: '기획안 데이터가 없습니다.' }, { status: 404 });
   }
 
-  // ═══ 2. 촬영콘티 로드 ═══
+  // ═══ 2. 촬영콘티 로드 (V2: step 4, fallback to old 6/8) ═══
   let contiData: any = null;
-  for (const step of [8, 6]) {
+  for (const step of [4, 6, 8]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);
@@ -49,9 +49,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     }
   }
 
-  // ═══ 3. 디자인 가이드 로드 ═══
+  // ═══ 3. 디자인 가이드 로드 (V2: step 6, fallback to old 8/10) ═══
   let designGuide: any = null;
-  for (const step of [10, 8]) {
+  for (const step of [6, 8, 10]) {
     const sd = getStepData(projectId, step);
     if (sd?.form_data) {
       const parsed = JSON.parse(sd.form_data);

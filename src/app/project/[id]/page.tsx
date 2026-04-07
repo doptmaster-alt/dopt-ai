@@ -314,11 +314,13 @@ export default function ProjectChat() {
     if (input) input.value = "";
   };
 
-  const sendMessage = async (overrideMessage?: string) => {
+  const sendMessage = async (overrideMessage?: string, overrideStep?: number) => {
     const messageToSend = overrideMessage || "";
     if ((!messageToSend && !attachedFile) || isStreaming) return;
 
     const userMessage = messageToSend || (attachedFile ? `[파일 업로드: ${attachedFile.name}] 이 파일을 분석해주세요.` : "");
+    // overrideStep이 있으면 사용 (step 전환 후 즉시 메시지 보내는 경우 race condition 방지)
+    const stepToSend = overrideStep ?? currentStep;
     setIsStreaming(true);
 
     // 단계 전환 명령 감지
@@ -335,14 +337,14 @@ export default function ProjectChat() {
     const newUserMsg: Message = {
       role: "user",
       content: displayContent,
-      step: currentStep,
+      step: stepToSend,
     };
     setMessages((prev) => [...prev, newUserMsg]);
 
     const assistantMsg: Message = {
       role: "assistant",
       content: "",
-      step: currentStep,
+      step: stepToSend,
     };
     setMessages((prev) => [...prev, assistantMsg]);
     setStatusInfo({ message: "디옵이가 생각하고 있어요", emoji: "💭", type: "thinking" });
@@ -375,7 +377,7 @@ export default function ProjectChat() {
         body: JSON.stringify({
           projectId: parseInt(projectId),
           message: userMessage,
-          currentStep,
+          currentStep: stepToSend,
           fileAttachment,
         }),
       });
@@ -470,8 +472,27 @@ export default function ProjectChat() {
     }
 
     // formUpdate SSE를 못 받았을 경우 — DB에서 직접 확인 후 패널 리프레시
-    // 기획안 (V2: step 4-5)
-    if (currentStep === 3 && !planApplied) {
+    // 브리프/시장조사 (V2: step 1-2) — SSE 못 받으면 DB에서 직접 확인
+    if (stepToSend >= 1 && stepToSend <= 2) {
+      try {
+        const res = await fetch(`/api/projects/${projectId}/step-data?step=${stepToSend}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.form_data) {
+            const parsed = JSON.parse(data.form_data);
+            if (parsed && Object.keys(parsed).length > 0) {
+              console.log("[Post-stream] Brief/research data found in DB, refreshing BriefPanel for step", stepToSend);
+              setFormRefreshKey(Date.now());
+              if (viewMode === "chat") setViewMode("split");
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[Post-stream] Brief DB check error:", e);
+      }
+    }
+    // 기획안 (V2: step 3)
+    if (stepToSend === 3 && !planApplied) {
       try {
         const res = await fetch(`/api/projects/${projectId}/step-data?step=3`);
         if (res.ok) {
@@ -491,8 +512,8 @@ export default function ProjectChat() {
         console.error("[Post-stream] DB check error:", e);
       }
     }
-    // 촬영콘티 (V2: step 6) — 항상 DB 확인 후 리프레시
-    if (currentStep === 4) {
+    // 촬영콘티 (V2: step 4) — 항상 DB 확인 후 리프레시
+    if (stepToSend === 4) {
       try {
         const res = await fetch(`/api/projects/${projectId}/step-data?step=4`);
         if (res.ok) {
@@ -1113,13 +1134,13 @@ export default function ProjectChat() {
                   }}
                   onRequestPlan={(msg) => {
                     if (currentStep === 1) {
-                      // 시장조사 → 브리프 작성
+                      // 시장조사 → 브리프 작성 (step 2로 전환 + step override로 race condition 방지)
                       updateStep(2);
-                      sendMessage(msg || "시장조사 결과를 바탕으로 브리프를 작성해줘");
+                      sendMessage(msg || "시장조사 결과를 바탕으로 브리프를 작성해줘", 2);
                     } else {
-                      // 브리프 → 기획안 작성
+                      // 브리프 → 기획안 작성 (step 3으로 전환 + step override)
                       updateStep(3);
-                      sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘");
+                      sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘", 3);
                     }
                   }}
                 />
