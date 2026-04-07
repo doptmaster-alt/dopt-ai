@@ -87,6 +87,63 @@ export async function POST(req: NextRequest) {
               try {
                 let dataToSave = event.formData;
 
+                // ═══ 시장조사 필드명 정규화 (AI가 잘못된 필드명을 보낼 수 있음) ═══
+                if (effectiveStep <= 1) {
+                  // marketTrends → trends
+                  if (dataToSave.marketTrends && !dataToSave.trends) {
+                    dataToSave.trends = dataToSave.marketTrends;
+                    delete dataToSave.marketTrends;
+                  }
+                  // targetAnalysis → targetInsight
+                  if (dataToSave.targetAnalysis && !dataToSave.targetInsight) {
+                    dataToSave.targetInsight = dataToSave.targetAnalysis;
+                    delete dataToSave.targetAnalysis;
+                  }
+                  // keywords가 배열이면 문자열로 변환
+                  if (Array.isArray(dataToSave.keywords)) {
+                    dataToSave.keywords = dataToSave.keywords.join(', ');
+                  }
+                  // categoryInsight → trends에 병합
+                  if (dataToSave.categoryInsight && !dataToSave.trends) {
+                    dataToSave.trends = dataToSave.categoryInsight;
+                    delete dataToSave.categoryInsight;
+                  }
+                  // competitors 형식 정규화 (문자열이면 배열로 변환)
+                  if (dataToSave.competitors && !Array.isArray(dataToSave.competitors)) {
+                    dataToSave.competitors = [];
+                  }
+                  if (Array.isArray(dataToSave.competitors)) {
+                    dataToSave.competitors = dataToSave.competitors.map((c: any) => ({
+                      name: c.name || c.brand || c.company || c.competitor || '',
+                      url: c.url || c.link || c.website || '',
+                      strengths: c.strengths || c.strength || c.pros || c.advantage || '',
+                      pageStructure: c.pageStructure || c.structure || c.layout || c.page_structure || '',
+                    }));
+                  }
+                  console.log(`[Chat API] 시장조사 필드 정규화 완료 — trends:${!!dataToSave.trends}, keywords:${!!dataToSave.keywords}, targetInsight:${!!dataToSave.targetInsight}, competitors:${dataToSave.competitors?.length || 0}개`);
+                }
+
+                // ═══ 시장조사 병합: 기존 데이터에 새 데이터를 덮어쓰기 (빈 필드 보존) ═══
+                if (effectiveStep <= 1) {
+                  try {
+                    const existingRow = getStepData(parseInt(projectId), effectiveStep);
+                    if (existingRow?.form_data) {
+                      const existing = JSON.parse(existingRow.form_data);
+                      // 기존 데이터를 베이스로, 새 데이터로 덮어쓰기 (빈 값은 기존 유지)
+                      const merged = { ...existing };
+                      for (const [key, val] of Object.entries(dataToSave)) {
+                        if (val !== undefined && val !== null && val !== '') {
+                          merged[key] = val;
+                        }
+                      }
+                      dataToSave = merged;
+                      console.log(`[Chat API] 시장조사 데이터 병합 완료`);
+                    }
+                  } catch (mergeErr: any) {
+                    console.error('[Chat API] 시장조사 병합 에러:', mergeErr.message);
+                  }
+                }
+
                 // ═══ 섹션 병합: 기존 DB 데이터와 새 섹션을 합침 (배치 저장 지원) ═══
                 if (saveStep === 3 && event.formData.sections?.length > 0) {
                   try {
