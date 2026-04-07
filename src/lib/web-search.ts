@@ -16,7 +16,7 @@ async function getBrowser() {
     const executablePath = process.env.PUPPETEER_EXECUTABLE_PATH || undefined;
     console.log(`[WebSearch] Launching browser, executablePath: ${executablePath || 'bundled'}`);
     browserInstance = await puppeteer.launch({
-      headless: true,
+      headless: 'shell',  // 'shell' 모드 = headless의 경량 모드 (Docker 호환성 높음)
       executablePath,
       args: [
         '--no-sandbox',
@@ -26,10 +26,20 @@ async function getBrowser() {
         '--disable-gpu',
         '--disable-extensions',
         '--disable-software-rasterizer',
-        '--disable-crashpad',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-background-networking',
+        '--disable-breakpad',               // crashpad 대신 breakpad 비활성화
+        '--disable-component-update',
+        '--disable-domain-reliability',
+        '--disable-features=AudioServiceOutOfProcess',
         '--single-process',
         '--no-zygote',
       ],
+      env: {
+        ...process.env,
+        CHROME_CRASHPAD_PIPE_NAME: '1',     // crashpad 파이프 우회
+      },
     });
   }
   return browserInstance;
@@ -38,18 +48,7 @@ async function getBrowser() {
 export async function webSearch(query: string): Promise<SearchResult[]> {
   console.log(`[WebSearch] 검색 시작: "${query}"`);
 
-  // 1차: DuckDuckGo HTML (봇 차단 없음, 가장 안정적)
-  try {
-    const results = await duckDuckGoSearch(query);
-    if (results.length > 0) {
-      console.log(`[WebSearch] DuckDuckGo 검색 성공: ${results.length}개 결과`);
-      return results;
-    }
-  } catch (e: any) {
-    console.error('[WebSearch] DuckDuckGo 검색 실패:', e.message);
-  }
-
-  // 2차: Brave Search API (무료, API키 불필요, 서버 IP 차단 없음)
+  // 1차: Brave Search (HTML 스크래핑, 서버 IP에서 가장 안정적)
   try {
     const results = await braveSearch(query);
     if (results.length > 0) {
@@ -60,7 +59,29 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     console.error('[WebSearch] Brave 검색 실패:', e.message);
   }
 
-  // 3차: Google 검색 (Puppeteer)
+  // 2차: DuckDuckGo HTML
+  try {
+    const results = await duckDuckGoSearch(query);
+    if (results.length > 0) {
+      console.log(`[WebSearch] DuckDuckGo 검색 성공: ${results.length}개 결과`);
+      return results;
+    }
+  } catch (e: any) {
+    console.error('[WebSearch] DuckDuckGo 검색 실패:', e.message);
+  }
+
+  // 3차: SearXNG 공개 인스턴스 (다중 검색엔진 메타서치)
+  try {
+    const results = await searxngSearch(query);
+    if (results.length > 0) {
+      console.log(`[WebSearch] SearXNG 검색 성공: ${results.length}개 결과`);
+      return results;
+    }
+  } catch (e: any) {
+    console.error('[WebSearch] SearXNG 검색 실패:', e.message);
+  }
+
+  // 4차: Google 검색 (Puppeteer — Docker에서 불안정할 수 있음)
   try {
     const results = await googleSearchPuppeteer(query);
     if (results.length > 0) {
@@ -71,7 +92,7 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     console.error('[WebSearch] Google 검색 실패:', e.message);
   }
 
-  // 4차: Naver 검색 (Puppeteer)
+  // 5차: Naver 검색 (Puppeteer)
   try {
     const results = await naverSearchPuppeteer(query);
     if (results.length > 0) {
@@ -80,17 +101,6 @@ export async function webSearch(query: string): Promise<SearchResult[]> {
     }
   } catch (e: any) {
     console.error('[WebSearch] Naver 검색 실패:', e.message);
-  }
-
-  // 5차: SearXNG 공개 인스턴스 (다중 검색엔진 메타서치)
-  try {
-    const results = await searxngSearch(query);
-    if (results.length > 0) {
-      console.log(`[WebSearch] SearXNG 검색 성공: ${results.length}개 결과`);
-      return results;
-    }
-  } catch (e: any) {
-    console.error('[WebSearch] SearXNG 검색 실패:', e.message);
   }
 
   console.error('[WebSearch] 모든 검색 방법 실패');

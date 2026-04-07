@@ -97,8 +97,12 @@ COPY --from=builder /app/knowledge-base.json ./knowledge-base.json
 COPY --from=builder /app/scripts ./scripts
 
 # Create data directories with proper permissions
-RUN mkdir -p /app/data /app/uploads /app/learning && \
-    chown -R diopt:diopt /app
+RUN mkdir -p /app/data /app/uploads /app/learning /tmp/.chromium-crash && \
+    chown -R diopt:diopt /app /tmp/.chromium-crash
+
+# Chromium crashpad workaround
+ENV CHROME_CRASHPAD_PIPE_NAME=1
+ENV CHROMIUM_FLAGS="--disable-software-rasterizer"
 
 USER diopt
 
