@@ -26,6 +26,9 @@ async function getBrowser() {
         '--disable-gpu',
         '--disable-extensions',
         '--disable-software-rasterizer',
+        '--disable-crashpad',
+        '--single-process',
+        '--no-zygote',
       ],
     });
   }
@@ -139,12 +142,12 @@ async function braveSearch(query: string): Promise<SearchResult[]> {
 
 // SearXNG 공개 인스턴스 (다중 검색엔진 메타서치, JSON API 지원)
 async function searxngSearch(query: string): Promise<SearchResult[]> {
-  // 여러 공개 인스턴스 시도
   const instances = [
-    'https://search.inetol.net',
     'https://searx.be',
     'https://search.ononoki.org',
     'https://searx.tiekoetter.com',
+    'https://search.inetol.net',
+    'https://priv.au',
   ];
 
   for (const instance of instances) {
@@ -152,13 +155,18 @@ async function searxngSearch(query: string): Promise<SearchResult[]> {
       const url = `${instance}/search?q=${encodeURIComponent(query)}&format=json&language=ko-KR`;
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; DioptBot/1.0)',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
           'Accept': 'application/json',
         },
         signal: AbortSignal.timeout(8000),
       });
 
       if (!res.ok) continue;
+
+      // JSON인지 확인
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('json')) continue;
+
       const data = await res.json();
       if (data.results && data.results.length > 0) {
         return data.results.slice(0, 8).map((r: any) => ({
