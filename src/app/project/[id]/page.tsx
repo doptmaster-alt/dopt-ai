@@ -1121,7 +1121,7 @@ export default function ProjectChat() {
                   projectId={parseInt(projectId)}
                   currentStep={0}
                   refreshKey={formRefreshKey}
-                  onStepComplete={() => updateStep(2)}
+                  onStepComplete={() => updateStep(1)}
                   onWorkOrderAnalyze={handleWorkOrderAnalyze}
                 />
               ) : /* STEP 1: 시장조사 — 패널 없음, 채팅에서만 표시 */

@@ -426,7 +426,7 @@ Figma 플러그인(DIOPT AI Designer)이 연결되어 있어야 합니다.`,
 기획자가 직접 하나하나 찾아야 할 시장조사, 경쟁사 분석, 키워드 조사를 한 번에 수행합니다.
 
 사용 시점:
-- STEP 0 시장조사 시작할 때
+- STEP 2 (id:1) 시장조사 시작할 때
 - 경쟁사 상세페이지 구조를 파악할 때
 - 업계 트렌드와 키워드를 조사할 때`,
     input_schema: {
@@ -509,8 +509,9 @@ Figma 플러그인(DIOPT AI Designer)이 연결되어 있어야 합니다.`,
     name: 'update_step_form',
     description: `현재 단계의 폼 데이터를 자동으로 채웁니다.
 
-각 STEP별 필드:
-- STEP 1 (시장조사):
+★★★ 내부 step ID 기준 (시스템 프롬프트의 id 값과 동일) ★★★
+각 STEP별 필드 (step 파라미터에 넣을 값 = 내부 id):
+- step=1, STEP 2 (시장조사):
   ★★★ 반드시 아래 정확한 필드명과 형식을 사용하세요 ★★★
   competitors: 배열 [{ name: "경쟁사명", url: "사이트URL", strengths: "강점 분석", pageStructure: "상세페이지 구조 분석" }]
   trends: 문자열 (시장 트렌드 — "marketTrends" 아님! "trends"!)
@@ -518,16 +519,16 @@ Figma 플러그인(DIOPT AI Designer)이 연결되어 있어야 합니다.`,
   targetInsight: 문자열 (타겟 인사이트 — "targetAnalysis" 아님! "targetInsight"!)
   adRegulations: 문자열 (광고 규제 사항)
   researchSummary: 문자열 (리서치 요약)
-- STEP 2 (브리프): productName, productComposition, slogan, mainTarget, massTarget, designSpec, planningPurpose, totalSections, totalSectionsDetail, uspTable(배열), uspGroups(배열), tocSections(배열), clientPreference, designRef, photoRef, photoRefBySections(배열), colorSuggestions(배열), overallToneAndManner, aiModelPersona, useModels, contractSections, contractCuts, suggestedSections, suggestedCuts, upsellReason, aeCommentary
-- STEP 3 (기획안): designTone, colorScheme, overallNote, useModels, sections(배열 — 아래 상세 참조)
-- STEP 4 (콘티가이드): projectTitle, shootDate, location, team, totalCuts, useModels, conceptSummary, shootNotice, propList, cutPages(배열), nukkiGuide
-  ★★★ STEP 4 콘티 배치 전송 ★★★
+- step=2, STEP 3 (브리프): productName, productComposition, slogan, mainTarget, massTarget, designSpec, planningPurpose, totalSections, totalSectionsDetail, uspTable(배열), uspGroups(배열), tocSections(배열), clientPreference, designRef, photoRef, photoRefBySections(배열), colorSuggestions(배열), overallToneAndManner, aiModelPersona, useModels, contractSections, contractCuts, suggestedSections, suggestedCuts, upsellReason, aeCommentary
+- step=3, STEP 4 (기획안): designTone, colorScheme, overallNote, useModels, sections(배열 — 아래 상세 참조)
+- step=4, STEP 5 (콘티가이드): projectTitle, shootDate, location, team, totalCuts, useModels, conceptSummary, shootNotice, propList, cutPages(배열), nukkiGuide
+  ★★★ STEP 5 콘티 배치 전송 ★★★
   컷이 15개 이상이면 반드시 여러 번 나눠서 호출하세요!
   - 1차: 기본정보 + cutPages[1~15]
   - 2차: { cutPages: [16~30], cutPagesBatch: true }  ← cutPagesBatch: true 필수!
   - 3차: { cutPages: [31~끝], cutPagesBatch: true }
   cutPagesBatch: true가 있으면 기존 cutPages에 추가됩니다. 없으면 덮어씁니다!
-- STEP 6 (디자인가이드): toneAndManner, typography, layoutGuide, cutSectionMapping, additionalNotes
+- step=6, STEP 7 (디자인가이드): toneAndManner, typography, layoutGuide, cutSectionMapping, additionalNotes
 
 ★★★ STEP 3 기획안 sections 배열 — 각 섹션 필수 구조 ★★★
 
