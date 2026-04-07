@@ -1112,8 +1112,15 @@ export default function ProjectChat() {
                     updateStep(3);
                   }}
                   onRequestPlan={(msg) => {
-                    updateStep(3);
-                    sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘");
+                    if (currentStep === 1) {
+                      // 시장조사 → 브리프 작성
+                      updateStep(2);
+                      sendMessage(msg || "시장조사 결과를 바탕으로 브리프를 작성해줘");
+                    } else {
+                      // 브리프 → 기획안 작성
+                      updateStep(3);
+                      sendMessage(msg || "확정된 브리프를 기반으로 기획안을 작성해줘");
+                    }
                   }}
                 />
               ) : /* STEP 3: 기획안 작성 */

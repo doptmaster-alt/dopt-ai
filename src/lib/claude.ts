@@ -509,20 +509,20 @@ Figma 플러그인(DIOPT AI Designer)이 연결되어 있어야 합니다.`,
     name: 'update_step_form',
     description: `현재 단계의 폼 데이터를 자동으로 채웁니다.
 
-각 STEP별 필드 (V2 파이프라인):
-- STEP 2/id:1 (시장조사): competitors(배열), marketTrends, targetAnalysis, keywords(배열), adRegulations, categoryInsight, pricingAnalysis, socialSentiment, researchSummary
-- STEP 3/id:2 (브리프): productName, slogan, mainTarget, massTarget, totalSections, uspTable(배열), tocSections(배열), clientPreference, designRef, photoRef, aiModelPersona, useModels, contractSections, contractCuts, suggestedSections, suggestedCuts, upsellReason, aeCommentary
-- STEP 5/id:4 (기획안): designTone, colorScheme, overallNote, useModels, sections(배열 — 아래 상세 참조)
-- STEP 7/id:6 (콘티가이드): projectTitle, shootDate, location, team, totalCuts, useModels, conceptSummary, shootNotice, propList, cutPages(배열), nukkiGuide
-  ★★★ STEP 7 콘티 배치 전송 ★★★
+각 STEP별 필드 (V2 파이프라인 10단계):
+- STEP 2/id:1 (시장조사): competitors(배열), marketTrends, targetAnalysis, keywords(배열), adRegulations, categoryInsight, pricingAnalysis, socialSentiment, researchSummary, trends
+- STEP 3/id:2 (브리프): productName, productComposition, slogan, mainTarget, massTarget, designSpec, planningPurpose, totalSections, totalSectionsDetail, uspTable(배열), uspGroups(배열), tocSections(배열), clientPreference, designRef, photoRef, photoRefBySections(배열), colorSuggestions(배열), overallToneAndManner, aiModelPersona, useModels, contractSections, contractCuts, suggestedSections, suggestedCuts, upsellReason, aeCommentary
+- STEP 4/id:3 (기획안): designTone, colorScheme, overallNote, useModels, sections(배열 — 아래 상세 참조)
+- STEP 5/id:4 (콘티가이드): projectTitle, shootDate, location, team, totalCuts, useModels, conceptSummary, shootNotice, propList, cutPages(배열), nukkiGuide
+  ★★★ STEP 5 콘티 배치 전송 ★★★
   컷이 15개 이상이면 반드시 여러 번 나눠서 호출하세요!
   - 1차: 기본정보 + cutPages[1~15]
   - 2차: { cutPages: [16~30], cutPagesBatch: true }  ← cutPagesBatch: true 필수!
   - 3차: { cutPages: [31~끝], cutPagesBatch: true }
   cutPagesBatch: true가 있으면 기존 cutPages에 추가됩니다. 없으면 덮어씁니다!
-- STEP 9/id:8 (디자인가이드): toneAndManner, typography, layoutGuide, cutSectionMapping, additionalNotes
+- STEP 7/id:6 (디자인가이드): toneAndManner, typography, layoutGuide, cutSectionMapping, additionalNotes
 
-★★★ STEP 5 기획안 sections 배열 — 각 섹션 필수 구조 ★★★
+★★★ STEP 4 기획안 sections 배열 — 각 섹션 필수 구조 ★★★
 
 각 섹션 객체에 반드시 아래 필드를 모두 포함하세요:
 {
@@ -1257,7 +1257,7 @@ export async function* streamChatWithTools(
   const hasTarget = /기획안|초안|섹션|전체|나머지/i.test(lastUserMsg);
   const hasAction = /작성|생성|만들|해줘|해 줘|해봐|해 봐|보여|표시|작업|계속|이어서|수정|다시|업데이트|변경|고도화|시작/i.test(lastUserMsg);
   const hasSectionDirectRequest = /섹션.*해|섹션.*부터|섹션.*까지|\d+섹션/i.test(lastUserMsg);
-  const isPlanCreationRequest = (currentStep === 4 || currentStep === 5) &&
+  const isPlanCreationRequest = currentStep === 3 &&
     ((hasTarget && hasAction) || hasSectionDirectRequest) &&
     !isFigmaExportRequest;
 
@@ -1269,17 +1269,17 @@ export async function* streamChatWithTools(
   const isResearchRequest = currentStep === 1 &&
     /시장조사|조사|분석|리서치|경쟁사|트렌드|시장/i.test(lastUserMsg);
 
-  // STEP 8: 디자인 가이드 요청 감지
+  // STEP 6: 디자인 가이드 요청 감지
   const isDesignGuideRequest = /디자인\s*가이드/i.test(lastUserMsg);
 
-  // STEP 6: 촬영콘티 가이드 작성 감지
-  const isContiCreationRequest = currentStep === 6 &&
+  // STEP 4: 촬영콘티 가이드 작성 감지
+  const isContiCreationRequest = currentStep === 4 &&
     /콘티|촬영|작성|생성|만들|해줘|해 줘|시작|가이드/i.test(lastUserMsg) &&
     !isFigmaExportRequest &&
     !isDesignGuideRequest;
 
-  // STEP 11: AI 총평 감지
-  const isReviewRequest = currentStep === 11 &&
+  // STEP 9: AI 총평 감지
+  const isReviewRequest = currentStep === 9 &&
     /총평|리포트|리포팅|마무리|평가|피드백/i.test(lastUserMsg);
 
   // 하이브리드 모델 선택: 브리프/기획안 핵심 작성 시에만 Opus 사용
@@ -1428,8 +1428,8 @@ ${batchInstruction}
   }
 
   // 리서치 단계(STEP 0, 1)는 검색 제한 완화
-  const isResearchStep = currentStep <= 1 || currentStep === 5 || currentStep === 8;
-  const isPlanStep = currentStep >= 5 && currentStep <= 7;
+  const isResearchStep = currentStep <= 1 || currentStep === 4 || currentStep === 6;
+  const isPlanStep = currentStep === 3;
   const MAX_TOOL_ITERATIONS = isResearchStep ? 15 : 8;
   let webSearchCount = 0;
   let fetchPageCount = 0;

@@ -82,15 +82,15 @@ export async function POST(req: NextRequest) {
               );
             } else if (event.type === 'form_update' && event.formData) {
               formUpdateCalled = true;
-              // 기획안 데이터(sections 포함)는 항상 step 4에 저장 (V2 파이프라인)
-              const saveStep = (event.formData.sections?.length > 0 && effectiveStep >= 4 && effectiveStep <= 5) ? 4 : effectiveStep;
+              // 기획안 데이터(sections 포함)는 항상 step 3에 저장 (V2 파이프라인 10단계)
+              const saveStep = (event.formData.sections?.length > 0 && effectiveStep === 3) ? 3 : effectiveStep;
               try {
                 let dataToSave = event.formData;
 
                 // ═══ 섹션 병합: 기존 DB 데이터와 새 섹션을 합침 (배치 저장 지원) ═══
-                if (saveStep === 4 && event.formData.sections?.length > 0) {
+                if (saveStep === 3 && event.formData.sections?.length > 0) {
                   try {
-                    const existingRow = getStepData(parseInt(projectId), 5);
+                    const existingRow = getStepData(parseInt(projectId), 3);
                     if (existingRow?.form_data) {
                       const existing = JSON.parse(existingRow.form_data);
                       if (existing.sections?.length > 0) {
@@ -115,9 +115,9 @@ export async function POST(req: NextRequest) {
                 }
 
                 // ═══ 콘티 병합: step 6 데이터 (V2) — cutPages 배치 누적 병합 ═══
-                if (saveStep === 6) {
+                if (saveStep === 4) {
                   try {
-                    const existingRow = getStepData(parseInt(projectId), 6);
+                    const existingRow = getStepData(parseInt(projectId), 4);
                     if (existingRow?.form_data) {
                       const existing = JSON.parse(existingRow.form_data);
 
@@ -207,8 +207,8 @@ export async function POST(req: NextRequest) {
 
               if (sectionNum) {
                 // step 5 우선, 없으면 현재 step
-                let stepToSave = 5;
-                let row = getStepData(parseInt(projectId), 5);
+                let stepToSave = 3;
+                let row = getStepData(parseInt(projectId), 3);
                 if (!row?.form_data) {
                   row = getStepData(parseInt(projectId), effectiveStep);
                   stepToSave = effectiveStep;
@@ -499,8 +499,8 @@ export async function POST(req: NextRequest) {
           if (isFigmaRequest && !toolWasCalled && isPluginConnected()) {
             console.log('[Chat API] Figma export fallback: AI did not call tool, executing directly');
             try {
-              // 기획안 데이터 가져오기 (step 5 우선, 없으면 현재 step)
-              const stepsToTry = [5, 4, 3, effectiveStep];
+              // 기획안 데이터 가져오기 (step 3 기획안 우선, 없으면 현재 step)
+              const stepsToTry = [3, effectiveStep];
               let formData: any = null;
               for (const s of stepsToTry) {
                 const row = getStepData(parseInt(projectId), s);
@@ -512,7 +512,7 @@ export async function POST(req: NextRequest) {
               }
               if (formData) {
                 const { buildFigmaExport } = await import('@/app/api/figma-export/builder');
-                const step = formData.sections ? 5 : (formData.competitors ? 0 : (formData.productName ? 1 : 5));
+                const step = formData.sections ? 3 : (formData.competitors ? 0 : (formData.productName ? 1 : 3));
                 const commands = buildFigmaExport(step, formData, project.title || '프로젝트');
                 console.log(`[Chat API] Figma fallback: step ${step}, ${commands.length} commands`);
                 addCommands(commands);

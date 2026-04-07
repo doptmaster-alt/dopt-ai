@@ -106,9 +106,9 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
       const res = await fetch(`/api/projects/${projectId}/step-data`);
       if (res.ok) {
         const allData = await res.json();
-        // step 0~4 데이터만 필터, 최근 업데이트 순으로 정렬
+        // step 0~2 데이터만 필터 (0:작업의뢰서, 1:시장조사, 2:브리프), 최근 업데이트 순
         const briefSteps = allData
-          .filter((d: any) => d.step <= 4 && d.formData && Object.keys(d.formData).length > 0)
+          .filter((d: any) => d.step <= 2 && d.formData && Object.keys(d.formData).length > 0)
           .sort((a: any, b: any) => {
             // updatedAt 기준 최신 우선, 없으면 step 역순
             const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
@@ -854,28 +854,44 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
         )}
       </div>
 
-      {/* 하단 고정 — 컨펌 + 기획안 작성 */}
-      {currentStep === 2 && !isEmpty && (
+      {/* 하단 고정 — 스텝별 액션 버튼 */}
+      {!isEmpty && (
         <div className="flex-shrink-0 bg-white border-t border-gray-200 px-4 py-3">
           <div className="flex items-center gap-2">
-            {!confirmed ? (
-              <button
-                onClick={handleConfirm}
-                className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700 transition shadow-md"
-              >
-                브리프 확정하기
-              </button>
-            ) : (
+            {/* STEP 1: 시장조사 완료 → 컨펌 + 브리프 작성 */}
+            {currentStep === 1 && (
               <>
-                <span className="text-xs text-green-600 font-medium flex items-center gap-1">
-                  <span>✅</span> 브리프 확정됨
-                </span>
                 <button
-                  onClick={() => onRequestPlan?.()}
+                  onClick={() => onRequestPlan?.("시장조사 결과를 바탕으로 브리프를 작성해줘")}
                   className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition shadow-md"
                 >
-                  📋 기획안 작성하기
+                  📝 브리프 작성하기
                 </button>
+              </>
+            )}
+            {/* STEP 2: 브리프 → 확정 + 기획안 작성 */}
+            {currentStep === 2 && (
+              <>
+                {!confirmed ? (
+                  <button
+                    onClick={handleConfirm}
+                    className="flex-1 px-4 py-2.5 bg-green-600 text-white rounded-xl font-medium text-sm hover:bg-green-700 transition shadow-md"
+                  >
+                    브리프 확정하기
+                  </button>
+                ) : (
+                  <>
+                    <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+                      <span>✅</span> 브리프 확정됨
+                    </span>
+                    <button
+                      onClick={() => onRequestPlan?.()}
+                      className="flex-1 px-4 py-2.5 bg-blue-600 text-white rounded-xl font-medium text-sm hover:bg-blue-700 transition shadow-md"
+                    >
+                      📋 기획안 작성하기
+                    </button>
+                  </>
+                )}
               </>
             )}
           </div>
