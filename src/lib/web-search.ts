@@ -600,7 +600,6 @@ async function fetchWithScrapingBee(url: string): Promise<string> {
     api_key: apiKey,
     url: url,
     render_js: 'false',        // JS 렌더링 불필요 시 크레딧 절약 (1 대신 5)
-    extract_rules: '',          // 전체 텍스트 추출
     premium_proxy: 'true',     // 주거용 프록시 (쇼핑몰 차단 우회)
     country_code: 'kr',         // 한국 IP
   });
