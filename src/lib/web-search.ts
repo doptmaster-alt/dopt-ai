@@ -596,19 +596,25 @@ async function fetchWithScrapingBee(url: string): Promise<string> {
     return '';
   }
 
+  // 쿠팡/스마트스토어 등 강력한 봇 차단 사이트는 stealth_proxy 사용 (75크레딧)
+  // 나머지는 premium_proxy 사용 (10~25크레딧)
+  const needsStealth = /coupang\.com|smartstore\.naver|11st\.co\.kr|gmarket\.co\.kr|auction\.co\.kr/i.test(url);
+  const needsJs = /coupang\.com|smartstore\.naver|oliveyoung\.co\.kr|11st\.co\.kr|gmarket\.co\.kr/i.test(url);
+
   const params = new URLSearchParams({
     api_key: apiKey,
     url: url,
-    render_js: 'false',        // JS 렌더링 불필요 시 크레딧 절약 (1 대신 5)
-    premium_proxy: 'true',     // 주거용 프록시 (쇼핑몰 차단 우회)
-    country_code: 'kr',         // 한국 IP
+    render_js: needsJs ? 'true' : 'false',
+    country_code: 'kr',
   });
 
-  // 쇼핑몰은 JS 렌더링 필요
-  const needsJs = /coupang\.com|smartstore\.naver|oliveyoung\.co\.kr|11st\.co\.kr|gmarket\.co\.kr/i.test(url);
-  if (needsJs) {
-    params.set('render_js', 'true');
-    params.set('wait', '3000');  // JS 로딩 대기
+  if (needsStealth) {
+    params.set('stealth_proxy', 'true');   // AI 기반 봇 우회 (쿠팡, 스마트스토어 등)
+    params.set('wait', '5000');
+    params.set('block_resources', 'false');
+  } else {
+    params.set('premium_proxy', 'true');   // 주거용 프록시 (올리브영 등)
+    if (needsJs) params.set('wait', '3000');
   }
 
   const res = await fetch(`https://app.scrapingbee.com/api/v1?${params.toString()}`, {
