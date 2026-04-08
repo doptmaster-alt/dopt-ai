@@ -106,24 +106,20 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
       const res = await fetch(`/api/projects/${projectId}/step-data`);
       if (res.ok) {
         const allData = await res.json();
-        // step 0~2 데이터만 필터 (0:작업의뢰서, 1:시장조사, 2:브리프), 최근 업데이트 순
+        // step 0~2 데이터만 필터 (0:작업의뢰서, 1:시장조사, 2:브리프)
         const briefSteps = allData
-          .filter((d: any) => d.step <= 2 && d.formData && Object.keys(d.formData).length > 0)
-          .sort((a: any, b: any) => {
-            // updatedAt 기준 최신 우선, 없으면 step 역순
-            const timeA = a.updatedAt ? new Date(a.updatedAt).getTime() : 0;
-            const timeB = b.updatedAt ? new Date(b.updatedAt).getTime() : 0;
-            return timeB - timeA;
-          });
+          .filter((d: any) => d.step <= 2 && d.formData && Object.keys(d.formData).length > 0);
 
         if (briefSteps.length > 0) {
-          // 가장 최근에 업데이트된 데이터를 기본으로 사용
-          const base = briefSteps[0].formData;
+          // 브리프(step 2) 데이터를 최우선 베이스로 사용
+          // 없으면 시장조사(step 1) → 작업의뢰서(step 0) 순
+          const sorted = [...briefSteps].sort((a: any, b: any) => b.step - a.step);
+          const base = sorted[0].formData;
           const merged: BriefData = { ...base };
 
-          // 나머지에서 빈 필드만 보충
-          for (let i = 1; i < briefSteps.length; i++) {
-            for (const [key, val] of Object.entries(briefSteps[i].formData)) {
+          // 낮은 step 데이터에서 빈 필드만 보충 (시장조사 데이터를 브리프에 보충)
+          for (let i = 1; i < sorted.length; i++) {
+            for (const [key, val] of Object.entries(sorted[i].formData)) {
               if (merged[key] === undefined || merged[key] === '' || merged[key] === null) {
                 merged[key] = val;
               }

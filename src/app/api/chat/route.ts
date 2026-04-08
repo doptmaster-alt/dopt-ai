@@ -590,21 +590,9 @@ export async function POST(req: NextRequest) {
             addMessage(projectId, 'assistant', fullResponse, effectiveStep);
           }
 
-          // 단계 전환 감지
-          // AI는 display 번호(STEP 1=작업의뢰서, STEP 2=시장조사, STEP 3=브리프...)를 사용하지만
-          // 내부 id는 0-indexed (0=작업의뢰서, 1=시장조사, 2=브리프...)
-          // 따라서 display 번호 → 내부 id 변환: detectedStep - 1
-          const stepMatch = fullResponse.match(/STEP\s*(\d+)/);
-          if (stepMatch) {
-            const displayStep = parseInt(stepMatch[1]);
-            const internalStep = displayStep - 1; // display STEP N → internal id N-1
-            if (internalStep > effectiveStep && internalStep <= 11) {
-              updateProjectStep(projectId, internalStep);
-              controller.enqueue(
-                encoder.encode(`data: ${JSON.stringify({ stepUpdate: internalStep })}\n\n`)
-              );
-            }
-          }
+          // 단계 전환은 버튼 클릭 또는 메시지 감지(route 상단)로만 수행
+          // AI 응답 텍스트의 "STEP N" 언급으로 자동 전환하지 않음
+          // (AI가 "다음 STEP 3을 진행할까요?"라고 묻는 것만으로 단계가 넘어가는 버그 방지)
 
           controller.enqueue(encoder.encode('data: [DONE]\n\n'));
           controller.close();
