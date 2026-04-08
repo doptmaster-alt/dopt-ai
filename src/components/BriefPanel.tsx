@@ -937,59 +937,273 @@ export default function BriefPanel({ projectId, currentStep, refreshKey, onConfi
   );
 }
 
-// 노션 스타일 미리보기 컴포넌트
+// ============================================================
+// Notion-style Brief Preview (read-only)
+// ============================================================
 function BriefPreview({ data }: { data: BriefData }) {
   const d = data;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* 💡 제품 개요 */}
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* ====== Section 1: 제품 개요 (Callout - light yellow) ====== */}
       {d.productName && (
-        <div className="pb-4 border-b-2 border-gray-200">
-          <h1 className="text-2xl font-bold text-gray-900">{d.productName}</h1>
-          {d.slogan && (
-            <p className="mt-2 text-base text-gray-500 italic">{d.slogan}</p>
-          )}
-          <div className="mt-3 space-y-1 text-sm">
+        <div className="rounded-lg border border-yellow-200 bg-yellow-50/60 p-4">
+          <div className="flex items-start gap-2 mb-3">
+            <span className="text-lg leading-none mt-0.5">💡</span>
+            <h2 className="text-sm font-bold text-gray-900">제품 개요</h2>
+          </div>
+          <div className="space-y-1.5 text-sm pl-7">
+            <p><span className="font-bold text-gray-800">제품명:</span> <span className="text-gray-700">{d.productName}</span></p>
             {d.productComposition && (
-              <p><span className="font-semibold text-gray-700">제품 구성:</span> <span className="text-gray-600">{d.productComposition}</span></p>
+              <p><span className="font-bold text-gray-800">제품 포지셔닝/구성:</span> <span className="text-gray-700">{d.productComposition}</span></p>
             )}
             {d.mainTarget && (
-              <p><span className="font-semibold text-gray-700">주요 타겟:</span> <span className="text-gray-600">{d.mainTarget}</span></p>
+              <p><span className="font-bold text-gray-800">주요 타겟:</span> <span className="text-gray-700">{d.mainTarget}</span></p>
             )}
             {d.designSpec && (
-              <p><span className="font-semibold text-gray-700">디자인 규격:</span> <span className="text-gray-600">{d.designSpec}</span></p>
+              <p><span className="font-bold text-gray-800">디자인 규격:</span> <span className="text-gray-700">{d.designSpec}</span></p>
             )}
             {d.planningPurpose && (
-              <p><span className="font-semibold text-gray-700">기획 목적:</span> <span className="text-gray-600">{d.planningPurpose}</span></p>
+              <div className="mt-1">
+                <span className="font-bold text-gray-800">기획 목적:</span>
+                <p className="text-gray-700 whitespace-pre-wrap mt-0.5">{d.planningPurpose}</p>
+              </div>
             )}
             {(d.totalSections || d.totalSectionsDetail) && (
-              <p className="pt-1 border-t border-gray-100"><span className="font-bold text-blue-700">Total: {d.totalSectionsDetail || `${d.totalSections}섹션`}</span></p>
+              <p className="mt-2 pt-2 border-t border-yellow-200">
+                <span className="font-bold text-blue-600">Total: {d.totalSectionsDetail || `${d.totalSections}섹션`}</span>
+              </p>
             )}
           </div>
         </div>
       )}
 
-      {/* 📚 Data */}
+      {/* ====== Section 2: USP (gray heading) ====== */}
+      {((d.uspTable && d.uspTable.length > 0) || (d.uspGroups && d.uspGroups.length > 0)) && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-200">
+            <h2 className="text-sm font-bold text-gray-800">USP</h2>
+          </div>
+          <div className="bg-white">
+            {/* uspGroups (공통/개별 분리) */}
+            {d.uspGroups && d.uspGroups.length > 0 ? (
+              <div>
+                {d.uspGroups.map((group, gi) => (
+                  <div key={gi}>
+                    <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
+                      <span className="text-xs font-bold text-gray-700">[{group.groupName}]</span>
+                      {group.description && <span className="text-xs text-gray-500 ml-2">{group.description}</span>}
+                    </div>
+                    <table className="w-full text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-gray-100">
+                          <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-10">No.</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-1/4">USP</th>
+                          <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세내용</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(group.items || []).map((u, i) => (
+                          <tr key={i} className="border-b border-gray-100 hover:bg-gray-50/50">
+                            <td className="px-3 py-2 text-gray-500 align-top">{i + 1}</td>
+                            <td className="px-3 py-2 font-medium text-gray-900 align-top">{u?.item || ''}</td>
+                            <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap">{u?.detail || ''}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+              </div>
+            ) : d.uspTable && d.uspTable.length > 0 ? (
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-10">No.</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-1/4">USP</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세내용</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.uspTable.map((u, i) => (
+                    <tr key={i} className="border-b border-gray-100 hover:bg-gray-50/50">
+                      <td className="px-3 py-2 text-gray-500 align-top">{i + 1}</td>
+                      <td className="px-3 py-2 font-medium text-gray-900 align-top">{u.item}</td>
+                      <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap">{u.detail}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : null}
+          </div>
+        </div>
+      )}
+
+      {/* ====== Section 3: 상세페이지 목차 (blue heading) ====== */}
+      {d.tocSections && d.tocSections.length > 0 && (
+        <div className="border border-blue-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-blue-100">
+            <h2 className="text-sm font-bold text-blue-900 flex items-center gap-1.5">
+              <span>📄</span> 상세페이지 목차
+            </h2>
+          </div>
+          <div className="bg-white">
+            <div className="px-4 py-2 border-b border-gray-200">
+              <p className="text-xs text-red-500 italic">*목차는 기획안 작성 시 기획 의도에 따라 변동될 예정입니다. 아래는 현재 기획 방향을 기반으로 한 초안입니다.</p>
+            </div>
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-16">섹션</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-28">섹션 이름</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세 내용</th>
+                </tr>
+              </thead>
+              <tbody>
+                {d.tocSections.map((s, i) => (
+                  <tr key={i} className="border-b border-gray-100 hover:bg-blue-50/30 align-top">
+                    <td className="px-3 py-2 font-bold text-blue-700">섹션{s.num}</td>
+                    <td className="px-3 py-2 font-medium text-gray-900">
+                      {s.tag && <span className="inline-block text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded mb-0.5 mr-1">{s.tag}</span>}
+                      {s.name}
+                    </td>
+                    <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap leading-relaxed">{s.detail}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ====== Section 4: Photo & Design REF (gray heading) ====== */}
+      {(d.designRef || d.photoRef || d.overallToneAndManner || (d.photoRefBySections && d.photoRefBySections.length > 0) || (d.colorSuggestions && d.colorSuggestions.length > 0)) && (
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-200">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+              <span>📷</span> Photo & Design REF
+            </h2>
+          </div>
+          <div className="bg-white p-4 space-y-4">
+            {/* 전체 톤앤매너 */}
+            {d.overallToneAndManner && (
+              <div>
+                <p className="text-xs font-bold text-gray-600 mb-1">전체 톤앤매너</p>
+                <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{d.overallToneAndManner}</p>
+              </div>
+            )}
+            {/* 컬러 제안 */}
+            {d.colorSuggestions && d.colorSuggestions.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-gray-600 mb-1">컬러 제안</p>
+                <div className="flex flex-wrap gap-2">
+                  {d.colorSuggestions.map((c, i) => (
+                    <span key={i} className="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">{c}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {/* 디자인 REF */}
+            {d.designRef && (
+              <div className="rounded-lg border border-yellow-200 overflow-hidden">
+                <div className="px-3 py-1.5 bg-yellow-100">
+                  <p className="text-xs font-bold text-yellow-800">디자인 REF</p>
+                </div>
+                <div className="px-3 py-2">
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{d.designRef}</p>
+                  <div className="mt-2 border border-dashed border-gray-300 rounded p-3 text-center text-gray-400 text-xs">
+                    이미지 레퍼런스 영역
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* 촬영 REF */}
+            {d.photoRef && (
+              <div className="rounded-lg border border-green-200 overflow-hidden">
+                <div className="px-3 py-1.5 bg-green-100">
+                  <p className="text-xs font-bold text-green-800">촬영 REF</p>
+                </div>
+                <div className="px-3 py-2">
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap">{d.photoRef}</p>
+                  <div className="mt-2 border border-dashed border-gray-300 rounded p-3 text-center text-gray-400 text-xs">
+                    이미지 레퍼런스 영역
+                  </div>
+                </div>
+              </div>
+            )}
+            {/* 섹션별 촬영 디렉션 */}
+            {d.photoRefBySections && d.photoRefBySections.length > 0 && (
+              <div className="space-y-2">
+                {d.photoRefBySections.map((ref, i) => (
+                  <div key={i} className="rounded-lg border border-green-200 overflow-hidden">
+                    <div className="px-3 py-1.5 bg-green-100">
+                      <p className="text-xs font-bold text-green-800">촬영 REF - {ref.section}</p>
+                    </div>
+                    <div className="px-3 py-2">
+                      <p className="text-xs text-gray-700 whitespace-pre-wrap">{ref.description}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ====== Section 5: AE Commentary ====== */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <span>💬</span> AE Commentary
+          </h2>
+        </div>
+        <div className="bg-white p-4 space-y-3">
+          <div>
+            <p className="text-xs font-bold text-gray-600 mb-1">AE 코멘트</p>
+            {d.aeCommentary ? (
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{d.aeCommentary}</p>
+            ) : (
+              <p className="text-xs text-gray-400 italic">코멘트 없음</p>
+            )}
+          </div>
+          <div>
+            <p className="text-xs font-bold text-gray-600 mb-1">AE 노트</p>
+            {d.aeNotes ? (
+              <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{d.aeNotes}</p>
+            ) : (
+              <div className="border border-gray-200 rounded-lg p-3 min-h-[60px]">
+                <p className="text-xs text-gray-400 italic">노트를 작성하세요 (편집 모드에서 입력 가능)</p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ====== 추가: 시장조사 Data (존재 시) ====== */}
       {(d.researchSummary || d.trends || d.keywords || (d.competitors && d.competitors.length > 0)) && (
-        <BriefSection emoji="📚" title="Data">
-          {d.trends && <BriefField label="트렌드" value={d.trends} />}
-          {d.keywords && <BriefField label="키워드" value={d.keywords} />}
-          {d.competitors && d.competitors.length > 0 && (
-            <div className="mt-3">
-              <p className="text-xs font-semibold text-gray-500 mb-2">경쟁사 분석</p>
-              <div className="rounded-lg border border-gray-200 overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-gray-800 text-white">
-                    <tr>
-                      <th className="px-3 py-2 text-left font-semibold">경쟁사</th>
-                      <th className="px-3 py-2 text-left font-semibold">강점</th>
-                      <th className="px-3 py-2 text-left font-semibold">페이지 구조</th>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-200">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+              <span>📚</span> Data (시장조사)
+            </h2>
+          </div>
+          <div className="bg-white p-4 space-y-3">
+            {d.trends && <BriefField label="트렌드" value={d.trends} />}
+            {d.keywords && <BriefField label="키워드" value={d.keywords} />}
+            {d.competitors && d.competitors.length > 0 && (
+              <div>
+                <p className="text-xs font-bold text-gray-600 mb-2">경쟁사 분석</p>
+                <table className="w-full text-xs border-collapse border border-gray-200 rounded">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">경쟁사</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">강점</th>
+                      <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">페이지 구조</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
+                  <tbody>
                     {d.competitors.map((c, i) => (
-                      <tr key={i} className="hover:bg-blue-50/50">
+                      <tr key={i} className="border-b border-gray-100 hover:bg-gray-50/50">
                         <td className="px-3 py-2 font-medium text-gray-900">{c.name}</td>
                         <td className="px-3 py-2 text-gray-700">{c.strengths}</td>
                         <td className="px-3 py-2 text-gray-700">{c.pageStructure}</td>
@@ -998,183 +1212,35 @@ function BriefPreview({ data }: { data: BriefData }) {
                   </tbody>
                 </table>
               </div>
-            </div>
-          )}
-          {d.researchSummary && <BriefField label="리서치 요약" value={d.researchSummary} />}
-          {d.adRegulations && <BriefField label="광고 규제 사항" value={d.adRegulations} />}
-        </BriefSection>
-      )}
-
-      {/* 📷 촬영 및 디자인 REF */}
-      {(d.designRef || d.photoRef || d.similarProjects || (d.photoRefBySections && d.photoRefBySections.length > 0)) && (
-        <BriefSection emoji="📷" title="촬영 및 디자인 REF">
-          {d.overallToneAndManner && <BriefField label="전체 톤앤매너" value={d.overallToneAndManner} />}
-          {d.photoRefBySections && d.photoRefBySections.length > 0 && (
-            <div className="mt-2 space-y-2">
-              <p className="text-xs font-semibold text-gray-500">섹션별 촬영 디렉션</p>
-              {d.photoRefBySections.map((ref, i) => (
-                <div key={i} className="bg-gray-50 rounded-lg p-2.5">
-                  <p className="text-xs font-bold text-blue-700">{ref.section}</p>
-                  <p className="text-xs text-gray-700 whitespace-pre-wrap mt-1">{ref.description}</p>
-                </div>
-              ))}
-            </div>
-          )}
-          {d.colorSuggestions && d.colorSuggestions.length > 0 && (
-            <div className="mt-2">
-              <p className="text-xs font-semibold text-gray-500 mb-1">컬러 제안</p>
-              {d.colorSuggestions.map((c, i) => (
-                <p key={i} className="text-xs text-gray-700">• {c}</p>
-              ))}
-            </div>
-          )}
-          {d.designRef && <BriefField label="디자인 레퍼런스" value={d.designRef} />}
-          {d.photoRef && <BriefField label="촬영 레퍼런스" value={d.photoRef} />}
-          {d.similarProjects && <BriefField label="유사 프로젝트" value={d.similarProjects} />}
-        </BriefSection>
-      )}
-
-      {/* 🚨 Issue */}
-      {(d.adRegulations || d.targetInsight) && (
-        <BriefSection emoji="🚨" title="Issue">
-          {d.adRegulations && <BriefField label="광고심의 이슈" value={d.adRegulations} />}
-          {d.targetInsight && <BriefField label="타겟 인사이트" value={d.targetInsight} />}
-        </BriefSection>
-      )}
-
-      {/* ⭐️ USP */}
-      {((d.uspTable && d.uspTable.length > 0) || (d.uspGroups && d.uspGroups.length > 0)) && (
-        <BriefSection emoji="⭐️" title="USP">
-          {/* 새 형식: 공통/개별 그룹 분리 */}
-          {d.uspGroups && d.uspGroups.length > 0 ? (
-            <div className="space-y-4">
-              {d.uspGroups.map((group, gi) => (
-                <div key={gi}>
-                  <p className="text-xs font-bold text-gray-800 mb-1">▼ {group.groupName}</p>
-                  {group.description && <p className="text-xs text-gray-500 mb-2">{group.description}</p>}
-                  <div className="rounded-lg border border-gray-200 overflow-hidden">
-                    <table className="w-full text-xs">
-                      <thead className="bg-gray-800 text-white">
-                        <tr>
-                          <th className="px-3 py-2 text-left font-semibold w-1/4">USP</th>
-                          <th className="px-3 py-2 text-left font-semibold">상세 내용</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {(group.items || []).map((u, i) => (
-                          <tr key={i} className="hover:bg-blue-50/50">
-                            <td className="px-3 py-2 font-bold text-gray-900">{u?.item || ''}</td>
-                            <td className="px-3 py-2 text-gray-700">{u?.detail || ''}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : d.uspTable && d.uspTable.length > 0 ? (
-            /* 기존 형식: 5컬럼 테이블 */
-            <div className="rounded-lg border border-gray-200 overflow-hidden">
-              <table className="w-full text-xs">
-                <thead className="bg-gray-800 text-white">
-                  <tr>
-                    <th className="px-3 py-2 text-left font-semibold">항목</th>
-                    <th className="px-3 py-2 text-left font-semibold">상세</th>
-                    {d.uspTable.some(u => u.vsCompetitor) && <th className="px-3 py-2 text-left font-semibold">vs 경쟁사</th>}
-                    {d.uspTable.some(u => u.adCheck) && <th className="px-3 py-2 text-left font-semibold">광고심의</th>}
-                    {d.uspTable.some(u => u.direction) && <th className="px-3 py-2 text-left font-semibold">방향</th>}
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {d.uspTable.map((u, i) => (
-                    <tr key={i} className="hover:bg-blue-50/50">
-                      <td className="px-3 py-2 font-bold text-gray-900">{u.item}</td>
-                      <td className="px-3 py-2 text-gray-700">{u.detail}</td>
-                      {d.uspTable!.some(u => u.vsCompetitor) && <td className="px-3 py-2 text-gray-700">{u.vsCompetitor}</td>}
-                      {d.uspTable!.some(u => u.adCheck) && <td className="px-3 py-2 text-gray-700">{u.adCheck}</td>}
-                      {d.uspTable!.some(u => u.direction) && <td className="px-3 py-2 text-gray-700">{u.direction}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : null}
-        </BriefSection>
-      )}
-
-      {/* 📌 Target */}
-      {(d.mainTarget || d.massTarget) && (
-        <BriefSection emoji="📌" title="Target">
-          {d.mainTarget && <BriefField label="메인 타겟" value={d.mainTarget} />}
-          {d.massTarget && <BriefField label="매스 타겟" value={d.massTarget} />}
-        </BriefSection>
-      )}
-
-      {/* 📷 촬영컨셉 */}
-      {(d.aiModelPersona || d.clientPreference) && (
-        <BriefSection emoji="📷" title="촬영컨셉">
-          {d.aiModelPersona && <BriefField label="AI 모델 페르소나" value={d.aiModelPersona} />}
-          {d.clientPreference && <BriefField label="클라이언트 선호" value={d.clientPreference} />}
-        </BriefSection>
-      )}
-
-      {/* 📃 기획방향 / 목차 */}
-      {d.tocSections && d.tocSections.length > 0 && (
-        <BriefSection emoji="📃" title="기획방향 / 상세페이지 목차">
-          <p className="text-xs text-gray-500 mb-2">
-            총 섹션 수: <span className="font-bold text-gray-800">{d.totalSections || d.tocSections.length}개</span>
-          </p>
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-white">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold w-16">섹션</th>
-                  <th className="px-3 py-2 text-left font-semibold w-28">이름</th>
-                  <th className="px-3 py-2 text-left font-semibold">상세</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {d.tocSections.map((s, i) => (
-                  <tr key={i} className="hover:bg-blue-50/50">
-                    <td className="px-3 py-2 font-bold text-blue-700 align-top">섹션{s.num}</td>
-                    <td className="px-3 py-2 font-medium text-gray-900 align-top">
-                      {s.tag && <span className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded mr-1">{s.tag}</span>}
-                      {s.name}
-                    </td>
-                    <td className="px-3 py-2 text-gray-700 whitespace-pre-wrap">{s.detail}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            )}
+            {d.researchSummary && <BriefField label="리서치 요약" value={d.researchSummary} />}
+            {d.adRegulations && <BriefField label="광고 규제 사항" value={d.adRegulations} />}
+            {d.targetInsight && <BriefField label="타겟 인사이트" value={d.targetInsight} />}
           </div>
-        </BriefSection>
-      )}
-
-      {/* 💬 AE Commentary */}
-      {(d.aeCommentary || d.aeNotes) && (
-        <div className="bg-amber-50 border-l-4 border-amber-400 rounded-r-xl px-4 py-3">
-          <div className="text-xs font-bold text-amber-700 mb-1">💬 AE Commentary</div>
-          <p className="text-sm text-amber-900 whitespace-pre-wrap">{d.aeCommentary || d.aeNotes}</p>
         </div>
       )}
 
-      {/* 🔄 피드백 반영 */}
+      {/* ====== 피드백 반영 내역 (존재 시) ====== */}
       {d.feedbackItems && d.feedbackItems.length > 0 && (
-        <BriefSection emoji="🔄" title="피드백 반영 내역">
-          <div className="rounded-lg border border-gray-200 overflow-hidden">
-            <table className="w-full text-xs">
-              <thead className="bg-gray-800 text-white">
-                <tr>
-                  <th className="px-3 py-2 text-left font-semibold">섹션</th>
-                  <th className="px-3 py-2 text-left font-semibold">피드백</th>
-                  <th className="px-3 py-2 text-left font-semibold">조치</th>
-                  <th className="px-3 py-2 text-left font-semibold w-12">심의</th>
+        <div className="border border-gray-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-gray-200">
+            <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+              <span>🔄</span> 피드백 반영 내역
+            </h2>
+          </div>
+          <div className="bg-white">
+            <table className="w-full text-xs border-collapse">
+              <thead>
+                <tr className="bg-gray-100">
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">섹션</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">피드백</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">조치</th>
+                  <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-12">심의</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100">
+              <tbody>
                 {d.feedbackItems.map((f, i) => (
-                  <tr key={i} className="hover:bg-blue-50/50">
+                  <tr key={i} className="border-b border-gray-100 hover:bg-gray-50/50">
                     <td className="px-3 py-2 font-medium text-gray-900">{f.section}</td>
                     <td className="px-3 py-2 text-gray-700">{f.feedback}</td>
                     <td className="px-3 py-2 text-gray-700">{f.action}</td>
@@ -1184,173 +1250,441 @@ function BriefPreview({ data }: { data: BriefData }) {
               </tbody>
             </table>
           </div>
-        </BriefSection>
+        </div>
       )}
 
-      {/* ✅ 최종 브리프 */}
+      {/* ====== 최종 브리프 (존재 시) ====== */}
       {(d.finalBrief || d.revisedBrief) && (
-        <BriefSection emoji="✅" title="최종 브리프">
-          <div className="bg-white border border-gray-200 rounded-lg p-4">
+        <div className="border border-green-200 rounded-lg overflow-hidden">
+          <div className="px-4 py-2.5 bg-green-100">
+            <h2 className="text-sm font-bold text-green-900 flex items-center gap-1.5">
+              <span>✅</span> 최종 브리프
+            </h2>
+          </div>
+          <div className="bg-white p-4">
             <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">
               {d.revisedBrief || d.finalBrief}
             </p>
           </div>
-        </BriefSection>
+        </div>
       )}
     </div>
   );
 }
 
-// 브리프 편집 컴포넌트
+// ============================================================
+// Notion-style Brief Editor (inline editing)
+// ============================================================
 function BriefEditor({ data, onChange }: { data: BriefData; onChange: (key: string, value: any) => void }) {
   const d = data;
 
   return (
-    <div className="max-w-2xl mx-auto space-y-4">
-      {/* 제품 개요 */}
-      <EditSection emoji="💡" title="제품 개요">
-        <EditField label="제품명" value={d.productName || ""} onChange={(v) => onChange("productName", v)} />
-        <EditField label="슬로건" value={d.slogan || ""} onChange={(v) => onChange("slogan", v)} />
-        <EditField label="제품 구성" value={d.productComposition || ""} onChange={(v) => onChange("productComposition", v)} />
-        <EditField label="주요 타겟" value={d.mainTarget || ""} onChange={(v) => onChange("mainTarget", v)} />
-        <EditField label="매스 타겟" value={d.massTarget || ""} onChange={(v) => onChange("massTarget", v)} />
-        <EditField label="디자인 규격" value={d.designSpec || ""} onChange={(v) => onChange("designSpec", v)} />
-        <EditField label="기획 목적" value={d.planningPurpose || ""} onChange={(v) => onChange("planningPurpose", v)} multiline />
-        <EditField label="Total 상세" value={d.totalSectionsDetail || ""} onChange={(v) => onChange("totalSectionsDetail", v)} />
-      </EditSection>
+    <div className="max-w-2xl mx-auto space-y-5">
+      {/* ====== Section 1: 제품 개요 (Callout - light yellow) ====== */}
+      <div className="rounded-lg border border-yellow-200 bg-yellow-50/60 p-4">
+        <div className="flex items-start gap-2 mb-3">
+          <span className="text-lg leading-none mt-0.5">💡</span>
+          <h2 className="text-sm font-bold text-gray-900">제품 개요</h2>
+        </div>
+        <div className="space-y-2.5 pl-7">
+          <EditField label="제품명" value={d.productName || ""} onChange={(v) => onChange("productName", v)} />
+          <EditField label="제품 포지셔닝/구성" value={d.productComposition || ""} onChange={(v) => onChange("productComposition", v)} />
+          <EditField label="주요 타겟" value={d.mainTarget || ""} onChange={(v) => onChange("mainTarget", v)} />
+          <EditField label="디자인 규격" value={d.designSpec || ""} onChange={(v) => onChange("designSpec", v)} />
+          <EditField label="기획 목적" value={d.planningPurpose || ""} onChange={(v) => onChange("planningPurpose", v)} multiline />
+          <EditField label="Total 상세" value={d.totalSectionsDetail || ""} onChange={(v) => onChange("totalSectionsDetail", v)} placeholder="예: 13섹션 = 8USP + 5기타" />
+        </div>
+      </div>
 
-      {/* 시장조사 Data */}
-      <EditSection emoji="📚" title="Data (시장조사)">
-        <EditField label="트렌드" value={d.trends || ""} onChange={(v) => onChange("trends", v)} multiline />
-        <EditField label="키워드" value={d.keywords || ""} onChange={(v) => onChange("keywords", v)} multiline />
-        <EditField label="리서치 요약" value={d.researchSummary || ""} onChange={(v) => onChange("researchSummary", v)} multiline />
-        <EditField label="광고 규제 사항" value={d.adRegulations || ""} onChange={(v) => onChange("adRegulations", v)} multiline />
-        <EditField label="타겟 인사이트" value={d.targetInsight || ""} onChange={(v) => onChange("targetInsight", v)} multiline />
-      </EditSection>
-
-      {/* 촬영 및 디자인 REF */}
-      <EditSection emoji="📷" title="촬영 및 디자인 REF">
-        <EditField label="전체 톤앤매너" value={d.overallToneAndManner || ""} onChange={(v) => onChange("overallToneAndManner", v)} multiline />
-        <EditField label="디자인 레퍼런스" value={d.designRef || ""} onChange={(v) => onChange("designRef", v)} multiline />
-        <EditField label="촬영 레퍼런스" value={d.photoRef || ""} onChange={(v) => onChange("photoRef", v)} multiline />
-        <EditField label="AI 모델 페르소나" value={d.aiModelPersona || ""} onChange={(v) => onChange("aiModelPersona", v)} multiline />
-        <EditField label="클라이언트 선호" value={d.clientPreference || ""} onChange={(v) => onChange("clientPreference", v)} multiline />
-      </EditSection>
-
-      {/* 기획방향 — 섹션별 편집 */}
-      {d.tocSections && d.tocSections.length > 0 && (
-        <EditSection emoji="📃" title="기획방향 / 목차">
-          {d.tocSections.map((s, i) => (
-            <div key={i} className="bg-gray-50 rounded-lg p-3 space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-blue-700">섹션{s.num}</span>
-                <input
-                  className="flex-1 text-xs border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none"
-                  value={s.name}
-                  onChange={(e) => {
-                    const updated = [...(d.tocSections || [])];
-                    updated[i] = { ...updated[i], name: e.target.value };
-                    onChange("tocSections", updated);
-                  }}
-                  placeholder="섹션 이름"
-                />
-                <input
-                  className="w-20 text-xs border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none"
-                  value={s.tag || ""}
-                  onChange={(e) => {
-                    const updated = [...(d.tocSections || [])];
-                    updated[i] = { ...updated[i], tag: e.target.value };
-                    onChange("tocSections", updated);
-                  }}
-                  placeholder="태그"
-                />
-              </div>
-              <textarea
-                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none"
-                rows={3}
-                value={s.detail}
-                onChange={(e) => {
-                  const updated = [...(d.tocSections || [])];
-                  updated[i] = { ...updated[i], detail: e.target.value };
-                  onChange("tocSections", updated);
+      {/* ====== Section 2: USP (gray heading) ====== */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-200">
+          <h2 className="text-sm font-bold text-gray-800">USP</h2>
+        </div>
+        <div className="bg-white p-4">
+          {/* uspGroups 편집 */}
+          {d.uspGroups && d.uspGroups.length > 0 ? (
+            <div className="space-y-4">
+              {d.uspGroups.map((group, gi) => (
+                <div key={gi} className="border border-gray-200 rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 bg-gray-50 flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-500">그룹명:</span>
+                    <input
+                      className="flex-1 text-xs font-bold border border-gray-200 rounded px-2 py-1 focus:border-blue-400 focus:outline-none bg-white"
+                      value={group.groupName}
+                      onChange={(e) => {
+                        const updated = [...(d.uspGroups || [])];
+                        updated[gi] = { ...updated[gi], groupName: e.target.value };
+                        onChange("uspGroups", updated);
+                      }}
+                    />
+                  </div>
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-gray-100">
+                        <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-10">No.</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-1/4">USP</th>
+                        <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세내용</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(group.items || []).map((u, i) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="px-3 py-2 text-gray-500 align-top">{i + 1}</td>
+                          <td className="px-1 py-1 align-top">
+                            <input
+                              className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none"
+                              value={u?.item || ''}
+                              onChange={(e) => {
+                                const updatedGroups = [...(d.uspGroups || [])];
+                                const updatedItems = [...(updatedGroups[gi].items || [])];
+                                updatedItems[i] = { ...updatedItems[i], item: e.target.value };
+                                updatedGroups[gi] = { ...updatedGroups[gi], items: updatedItems };
+                                onChange("uspGroups", updatedGroups);
+                              }}
+                            />
+                          </td>
+                          <td className="px-1 py-1 align-top">
+                            <textarea
+                              className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none"
+                              rows={2}
+                              value={u?.detail || ''}
+                              onChange={(e) => {
+                                const updatedGroups = [...(d.uspGroups || [])];
+                                const updatedItems = [...(updatedGroups[gi].items || [])];
+                                updatedItems[i] = { ...updatedItems[i], detail: e.target.value };
+                                updatedGroups[gi] = { ...updatedGroups[gi], items: updatedItems };
+                                onChange("uspGroups", updatedGroups);
+                              }}
+                            />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+                    <button
+                      onClick={() => {
+                        const updatedGroups = [...(d.uspGroups || [])];
+                        const updatedItems = [...(updatedGroups[gi].items || []), { item: "", detail: "" }];
+                        updatedGroups[gi] = { ...updatedGroups[gi], items: updatedItems };
+                        onChange("uspGroups", updatedGroups);
+                      }}
+                      className="text-xs text-blue-600 hover:text-blue-800"
+                    >
+                      + USP 추가
+                    </button>
+                  </div>
+                </div>
+              ))}
+              <button
+                onClick={() => {
+                  const updatedGroups = [...(d.uspGroups || []), { groupName: "새 그룹", items: [{ item: "", detail: "" }] }];
+                  onChange("uspGroups", updatedGroups);
                 }}
-                placeholder="상세 내용 (러프 카피, 비주얼 디렉션 등)"
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                + USP 그룹 추가
+              </button>
+            </div>
+          ) : d.uspTable && d.uspTable.length > 0 ? (
+            <div>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-10">No.</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-1/4">USP</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세내용</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.uspTable.map((u, i) => (
+                    <tr key={i} className="border-b border-gray-100">
+                      <td className="px-3 py-2 text-gray-500 align-top">{i + 1}</td>
+                      <td className="px-1 py-1 align-top">
+                        <input
+                          className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none"
+                          value={u.item}
+                          onChange={(e) => {
+                            const updated = [...(d.uspTable || [])];
+                            updated[i] = { ...updated[i], item: e.target.value };
+                            onChange("uspTable", updated);
+                          }}
+                        />
+                      </td>
+                      <td className="px-1 py-1 align-top">
+                        <textarea
+                          className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none"
+                          rows={2}
+                          value={u.detail}
+                          onChange={(e) => {
+                            const updated = [...(d.uspTable || [])];
+                            updated[i] = { ...updated[i], detail: e.target.value };
+                            onChange("uspTable", updated);
+                          }}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    const updated = [...(d.uspTable || []), { item: "", detail: "" }];
+                    onChange("uspTable", updated);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  + USP 추가
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-xs text-gray-400 mb-2">USP가 없습니다</p>
+              <button
+                onClick={() => onChange("uspGroups", [{ groupName: "공통 USP", items: [{ item: "", detail: "" }] }])}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                + USP 추가하기
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ====== Section 3: 상세페이지 목차 (blue heading) ====== */}
+      <div className="border border-blue-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-blue-100">
+          <h2 className="text-sm font-bold text-blue-900 flex items-center gap-1.5">
+            <span>📄</span> 상세페이지 목차
+          </h2>
+        </div>
+        <div className="bg-white">
+          {d.tocSections && d.tocSections.length > 0 ? (
+            <>
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="bg-gray-100">
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-16">섹션</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200 w-28">섹션 이름</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-600 border-b border-gray-200">상세 내용</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {d.tocSections.map((s, i) => (
+                    <tr key={i} className="border-b border-gray-100 align-top">
+                      <td className="px-3 py-2 font-bold text-blue-700">섹션{s.num}</td>
+                      <td className="px-1 py-1">
+                        <input
+                          className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none"
+                          value={s.name}
+                          onChange={(e) => {
+                            const updated = [...(d.tocSections || [])];
+                            updated[i] = { ...updated[i], name: e.target.value };
+                            onChange("tocSections", updated);
+                          }}
+                          placeholder="섹션 이름"
+                        />
+                        <input
+                          className="w-full text-xs border border-gray-200 rounded px-2 py-1 mt-1 focus:border-blue-400 focus:outline-none text-blue-600"
+                          value={s.tag || ""}
+                          onChange={(e) => {
+                            const updated = [...(d.tocSections || [])];
+                            updated[i] = { ...updated[i], tag: e.target.value };
+                            onChange("tocSections", updated);
+                          }}
+                          placeholder="태그 (선택)"
+                        />
+                      </td>
+                      <td className="px-1 py-1">
+                        <textarea
+                          className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none leading-relaxed"
+                          rows={4}
+                          value={s.detail}
+                          onChange={(e) => {
+                            const updated = [...(d.tocSections || [])];
+                            updated[i] = { ...updated[i], detail: e.target.value };
+                            onChange("tocSections", updated);
+                          }}
+                          placeholder="메인 카피, 서브 카피, 비주얼 디렉션 등"
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="px-3 py-2 bg-gray-50 border-t border-gray-200">
+                <button
+                  onClick={() => {
+                    const nextNum = (d.tocSections || []).length + 1;
+                    const updated = [...(d.tocSections || []), { num: nextNum, name: "", detail: "" }];
+                    onChange("tocSections", updated);
+                  }}
+                  className="text-xs text-blue-600 hover:text-blue-800"
+                >
+                  + 섹션 추가
+                </button>
+              </div>
+            </>
+          ) : (
+            <div className="text-center py-4">
+              <p className="text-xs text-gray-400 mb-2">목차가 없습니다</p>
+              <button
+                onClick={() => onChange("tocSections", [{ num: 1, name: "", detail: "" }])}
+                className="text-xs text-blue-600 hover:text-blue-800"
+              >
+                + 섹션 추가하기
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ====== Section 4: Photo & Design REF (gray heading) ====== */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <span>📷</span> Photo & Design REF
+          </h2>
+        </div>
+        <div className="bg-white p-4 space-y-3">
+          <EditField label="전체 톤앤매너" value={d.overallToneAndManner || ""} onChange={(v) => onChange("overallToneAndManner", v)} multiline />
+          {/* 디자인 REF */}
+          <div className="rounded-lg border border-yellow-200 overflow-hidden">
+            <div className="px-3 py-1.5 bg-yellow-100">
+              <p className="text-xs font-bold text-yellow-800">디자인 REF</p>
+            </div>
+            <div className="p-3">
+              <textarea
+                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none leading-relaxed"
+                rows={3}
+                value={d.designRef || ""}
+                onChange={(e) => onChange("designRef", e.target.value)}
+                placeholder="디자인 레퍼런스 설명"
               />
             </div>
-          ))}
-        </EditSection>
-      )}
+          </div>
+          {/* 촬영 REF */}
+          <div className="rounded-lg border border-green-200 overflow-hidden">
+            <div className="px-3 py-1.5 bg-green-100">
+              <p className="text-xs font-bold text-green-800">촬영 REF</p>
+            </div>
+            <div className="p-3">
+              <textarea
+                className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 focus:border-blue-400 focus:outline-none resize-none leading-relaxed"
+                rows={3}
+                value={d.photoRef || ""}
+                onChange={(e) => onChange("photoRef", e.target.value)}
+                placeholder="촬영 레퍼런스 설명"
+              />
+            </div>
+          </div>
+          <EditField label="AI 모델 페르소나" value={d.aiModelPersona || ""} onChange={(v) => onChange("aiModelPersona", v)} multiline />
+          <EditField label="클라이언트 선호" value={d.clientPreference || ""} onChange={(v) => onChange("clientPreference", v)} multiline />
+        </div>
+      </div>
 
-      {/* AE Commentary */}
-      <EditSection emoji="💬" title="AE Commentary">
-        <EditField label="AE 코멘트" value={d.aeCommentary || ""} onChange={(v) => onChange("aeCommentary", v)} multiline />
-        <EditField label="AE 노트" value={d.aeNotes || ""} onChange={(v) => onChange("aeNotes", v)} multiline />
-      </EditSection>
+      {/* ====== Section 5: AE Commentary ====== */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <span>💬</span> AE Commentary
+          </h2>
+        </div>
+        <div className="bg-white p-4 space-y-3">
+          <EditField label="AE 코멘트" value={d.aeCommentary || ""} onChange={(v) => onChange("aeCommentary", v)} multiline />
+          <EditField label="AE 노트" value={d.aeNotes || ""} onChange={(v) => onChange("aeNotes", v)} multiline placeholder="여기에 자유롭게 노트를 작성하세요" />
+        </div>
+      </div>
+
+      {/* ====== 시장조사 Data (있으면 표시) ====== */}
+      <div className="border border-gray-200 rounded-lg overflow-hidden">
+        <div className="px-4 py-2.5 bg-gray-200">
+          <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
+            <span>📚</span> Data (시장조사)
+          </h2>
+        </div>
+        <div className="bg-white p-4 space-y-3">
+          <EditField label="트렌드" value={d.trends || ""} onChange={(v) => onChange("trends", v)} multiline />
+          <EditField label="키워드" value={d.keywords || ""} onChange={(v) => onChange("keywords", v)} multiline />
+          <EditField label="리서치 요약" value={d.researchSummary || ""} onChange={(v) => onChange("researchSummary", v)} multiline />
+          <EditField label="광고 규제 사항" value={d.adRegulations || ""} onChange={(v) => onChange("adRegulations", v)} multiline />
+          <EditField label="타겟 인사이트" value={d.targetInsight || ""} onChange={(v) => onChange("targetInsight", v)} multiline />
+        </div>
+      </div>
     </div>
   );
 }
 
-// 편집 섹션 wrapper
+// ============================================================
+// Helper Components
+// ============================================================
+
+// 편집 섹션 wrapper (used only by special cases)
 function EditSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-2.5 bg-gray-50 border-b border-gray-200">
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="px-4 py-2.5 bg-gray-200">
         <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
           <span>{emoji}</span> {title}
         </h2>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="bg-white p-4 space-y-3">
         {children}
       </div>
     </div>
   );
 }
 
-// 편집 필드
-function EditField({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
+// 편집 필드 (inline style)
+function EditField({ label, value, onChange, multiline, placeholder }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean; placeholder?: string }) {
   return (
     <div>
-      <label className="text-xs font-semibold text-gray-500 mb-1 block">{label}</label>
+      <label className="text-xs font-bold text-gray-600 mb-1 block">{label}</label>
       {multiline ? (
         <textarea
-          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 resize-none leading-relaxed"
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 resize-none leading-relaxed bg-white"
           rows={3}
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
         />
       ) : (
         <input
-          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200"
+          className="w-full text-sm border border-gray-200 rounded-lg px-3 py-2 focus:border-blue-400 focus:outline-none focus:ring-1 focus:ring-blue-200 bg-white"
           value={value}
           onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
         />
       )}
     </div>
   );
 }
 
-// 섹션 wrapper
+// 섹션 wrapper (used by BriefPreview for generic sections)
 function BriefSection({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-      <div className="px-4 py-3 bg-gray-50 border-b border-gray-200">
-        <h2 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+    <div className="border border-gray-200 rounded-lg overflow-hidden">
+      <div className="px-4 py-2.5 bg-gray-200">
+        <h2 className="text-sm font-bold text-gray-800 flex items-center gap-1.5">
           <span>{emoji}</span>
           {title}
         </h2>
       </div>
-      <div className="p-4 space-y-3">
+      <div className="bg-white p-4 space-y-3">
         {children}
       </div>
     </div>
   );
 }
 
-// 필드 표시
+// 필드 표시 (read-only)
 function BriefField({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <p className="text-xs font-semibold text-gray-500 mb-1">{label}</p>
+      <p className="text-xs font-bold text-gray-600 mb-0.5">{label}</p>
       <p className="text-sm text-gray-800 whitespace-pre-wrap leading-relaxed">{value}</p>
     </div>
   );
